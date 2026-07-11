@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="referrer" content="no-referrer">
 <meta name="color-scheme" content="dark">
 <title>Anime Universe</title>
@@ -25,7 +25,7 @@
     --display:"Russo One",system-ui,sans-serif;
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%;overflow:hidden}
+  html,body{height:100%;overflow:hidden;overscroll-behavior:none}
   body{
     background:
       radial-gradient(1200px 800px at 50% 42%, #101736 0%, transparent 60%),
@@ -34,7 +34,9 @@
     font-family:var(--body);
     -webkit-font-smoothing:antialiased;
   }
-  canvas#cv{position:fixed;inset:0;display:block;cursor:grab}
+  canvas#cv{position:fixed;inset:0;display:block;cursor:grab;
+    touch-action:none;-webkit-tap-highlight-color:transparent;
+    -webkit-touch-callout:none;user-select:none}
   canvas#cv.grabbing{cursor:grabbing}
   canvas#cv.point{cursor:pointer}
 
@@ -251,18 +253,35 @@
   @keyframes pop{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
   @keyframes beam{from{background-position:0 0}to{background-position:0 300%}}
 
+  @media (pointer:coarse){
+    .tip{display:none !important}
+    .hud button{width:44px;height:44px;font-size:18px}
+  }
   @media (max-width:720px){
-    header{max-width:calc(100vw - 40px)}
-    .search{width:min(300px,calc(100vw - 40px))}
-    .legend{top:auto;bottom:64px;left:12px;right:12px;flex-direction:row;flex-wrap:wrap;gap:5px;align-items:flex-start}
+    header{top:calc(8px + env(safe-area-inset-top));left:12px;max-width:calc(100vw - 24px)}
+    h1{font-size:18px;margin-top:4px}
+    .eyebrow{font-size:8.5px;letter-spacing:.26em}
+    .search{width:calc(100vw - 24px);margin-top:8px}
+    .search input{padding:10px 12px 10px 34px;font-size:16px} /* 16px — чтобы iOS не зумил при фокусе */
+    .drop{max-height:46vh;-webkit-overflow-scrolling:touch}
+    .legend{
+      top:auto;bottom:calc(8px + env(safe-area-inset-bottom));left:8px;right:62px;
+      flex-direction:row;flex-wrap:nowrap;overflow-x:auto;gap:5px;align-items:center;
+      -webkit-overflow-scrolling:touch;scrollbar-width:none;padding:4px 0;
+    }
+    .legend::-webkit-scrollbar{display:none}
     .legend .cap{display:none}
-    .chip{padding:4px 8px;font-size:10px}
+    .chip{padding:6px 10px;font-size:10.5px;flex:none}
+    .chip:hover{transform:none}
     .chip .n{display:none}
     .hint{display:none}
-    .panel{width:100vw;top:auto;height:64vh;border-left:0;border-top:1px solid var(--line);
+    .hud{right:8px;bottom:calc(8px + env(safe-area-inset-bottom));gap:6px}
+    .panel{width:100vw;top:auto;height:min(72vh,560px);border-left:0;border-top:1px solid var(--line);
       transform:translateY(105%)}
     .panel.open{transform:translateY(0)}
-    .poster{height:120px}
+    .panel-body{padding:14px;padding-bottom:calc(16px + env(safe-area-inset-bottom))}
+    .poster{height:124px;margin:-14px -14px 12px}
+    .rel:hover{transform:none}
   }
   @media (prefers-reduced-motion: reduce){
     .panel{transition:none}
@@ -873,10 +892,10 @@ let hoverN=null, selectedN=null;
 const drag={node:null,panning:false,moved:0,sx:0,sy:0,cx:0,cy:0};
 const pointers=new Map(); let pinch0=null;
 
-function nodeAt(px,py){
+function nodeAt(px,py,pad=8){
   const wx=s2wX(px), wy=s2wY(py);
   let best=null,bd=1e9;
-  const hitPad=8/cam.s;
+  const hitPad=pad/cam.s;
   for(const n of nodes){
     if(!n.visible||!activeClusters.has(n.c)) continue;
     const dx=n.x-wx; if(dx>60/cam.s+n.r||dx<-60/cam.s-n.r) continue;
@@ -892,10 +911,11 @@ cv.addEventListener("pointerdown",e=>{
   pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(pointers.size===2){
     const p=[...pointers.values()];
-    pinch0={d:Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y),s:cam.s};
-    drag.node=null; drag.panning=false; return;
+    const mx=(p[0].x+p[1].x)/2, my=(p[0].y+p[1].y)/2;
+    pinch0={d:Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y),s:cam.s,wx:s2wX(mx),wy:s2wY(my)};
+    drag.node=null; drag.panning=false; cv.classList.remove("grabbing"); return;
   }
-  const n=nodeAt(e.clientX,e.clientY);
+  const n=nodeAt(e.clientX,e.clientY, e.pointerType==="touch"?16:8);
   drag.moved=0; drag.sx=e.clientX; drag.sy=e.clientY;
   if(n){drag.node=n; alpha=Math.max(alpha,.25);}
   else {drag.panning=true; drag.cx=cam.x; drag.cy=cam.y; cv.classList.add("grabbing");}
@@ -907,7 +927,11 @@ cv.addEventListener("pointermove",e=>{
   if(pointers.size===2&&pinch0){
     const p=[...pointers.values()];
     const d=Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y);
+    const mx=(p[0].x+p[1].x)/2, my=(p[0].y+p[1].y)/2;
     cam.s=Math.min(ZMAX,Math.max(ZMIN,pinch0.s*d/pinch0.d));
+    cam.x=pinch0.wx-(mx-W/2)/cam.s;
+    cam.y=pinch0.wy-(my-H/2)/cam.s;
+    fly=null;
     return;
   }
   const mx=e.clientX,my=e.clientY;
@@ -922,6 +946,7 @@ cv.addEventListener("pointermove",e=>{
     cam.x=drag.cx-(mx-drag.sx)/cam.s; cam.y=drag.cy-(my-drag.sy)/cam.s;
     fly=null; return;
   }
+  if(e.pointerType==="touch") return; // на тач-экранах нет наведения
   hoverN=nodeAt(mx,my);
   cv.classList.toggle("point",!!hoverN);
   if(hoverN){
@@ -945,6 +970,15 @@ function endPointer(e){
 cv.addEventListener("pointerup",endPointer);
 cv.addEventListener("pointercancel",endPointer);
 
+cv.addEventListener("contextmenu",e=>e.preventDefault());
+cv.addEventListener("dblclick",e=>{
+  e.preventDefault();
+  const wx=s2wX(e.clientX), wy=s2wY(e.clientY);
+  cam.s=Math.min(ZMAX,cam.s*1.7);
+  cam.x=wx-(e.clientX-W/2)/cam.s;
+  cam.y=wy-(e.clientY-H/2)/cam.s;
+  fly=null;
+});
 cv.addEventListener("wheel",e=>{
   e.preventDefault();
   const f=e.deltaY<0?1.13:1/1.13;
@@ -983,7 +1017,9 @@ function relListOf(n){
 function select(n){
   selectedN=n;
   startLoad(n);
-  flyTo(n.x,n.y,Math.max(cam.s,1.0));
+  // смещаем камеру так, чтобы панель не закрывала выбранный узел
+  const ts=Math.max(cam.s,1.0), mob=W<=720;
+  flyTo(n.x+(mob?0:178/ts), n.y+(mob?H*.3/ts:0), ts);
   const rel=relListOf(n);
   const REL_MAX=24;
   const coreTag=n.isCore?" · ЛЕГЕНДА":"";
