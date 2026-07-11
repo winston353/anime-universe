@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="no-referrer">
+<meta name="color-scheme" content="dark">
+<title>Карта аниме</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Russo+One&family=Manrope:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#070a14;
+    --panel:rgba(13,18,36,.86);
+    --line:rgba(139,92,246,.45);
+    --arcane:#8b5cf6;
+    --arcane-soft:#a78bfa;
+    --mana:#38bdf8;
+    --gold:#fbbf24;
+    --ink:#dbe4ff;
+    --muted:#7c89b0;
+    --mono:"JetBrains Mono",ui-monospace,monospace;
+    --body:"Manrope",system-ui,sans-serif;
+    --display:"Russo One",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden}
+  body{
+    background:
+      radial-gradient(1200px 800px at 50% 42%, #101736 0%, transparent 60%),
+      var(--void);
+    color:var(--ink);
+    font-family:var(--body);
+    -webkit-font-smoothing:antialiased;
+  }
+  canvas#cv{position:fixed;inset:0;display:block;cursor:grab}
+  canvas#cv.grabbing{cursor:grabbing}
+  canvas#cv.point{cursor:pointer}
+
+  /* ---------- шапка ---------- */
+  header{
+    position:fixed;top:18px;left:20px;z-index:10;pointer-events:none;
+    max-width:360px;
+  }
+  header>*{pointer-events:auto}
+  .eyebrow{
+    font-family:var(--mono);font-size:10px;letter-spacing:.32em;
+    color:var(--arcane-soft);text-transform:uppercase;
+    display:flex;align-items:center;gap:8px;
+  }
+  .eyebrow::before{content:"";width:22px;height:1px;background:var(--arcane)}
+  h1{
+    font-family:var(--display);font-size:clamp(20px,3vw,30px);
+    letter-spacing:.06em;margin-top:6px;color:#eef1ff;
+    text-shadow:0 0 24px rgba(139,92,246,.55);
+  }
+  .sub{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.5}
+  .sub b{color:var(--gold);font-weight:600}
+
+  /* ---------- поиск ---------- */
+  .search{position:relative;margin-top:14px;width:300px}
+  .search input{
+    width:100%;padding:9px 12px 9px 34px;
+    background:rgba(10,14,30,.8);border:1px solid var(--line);
+    color:var(--ink);font-family:var(--mono);font-size:12px;
+    outline:none;border-radius:2px;
+    clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);
+    transition:border-color .2s, box-shadow .2s;
+  }
+  .search input:focus{border-color:var(--arcane-soft);box-shadow:0 0 18px rgba(139,92,246,.25)}
+  .search input::placeholder{color:#4d5a80}
+  .search .icon{position:absolute;left:11px;top:50%;translate:0 -50%;color:var(--arcane-soft);font-size:12px}
+  .drop{
+    position:absolute;top:calc(100% + 6px);left:0;right:0;
+    background:var(--panel);border:1px solid var(--line);
+    backdrop-filter:blur(10px);display:none;z-index:20;max-height:396px;overflow:auto;
+  }
+  .drop.open{display:block;animation:pop .18s ease}
+  .drop button{
+    display:flex;align-items:center;gap:9px;width:100%;
+    padding:5px 12px;background:none;border:0;color:var(--ink);
+    font-family:var(--body);font-size:12.5px;cursor:pointer;text-align:left;
+  }
+  .drop button:hover,.drop button.active{background:rgba(139,92,246,.16)}
+  .drop .thumb{width:24px;height:32px}
+  .drop .rt{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .drop .sc{margin-left:auto;font-family:var(--mono);font-size:9.5px;color:var(--muted);flex:none;max-width:88px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  /* ---------- мини-обложки ---------- */
+  .thumb{
+    width:27px;height:36px;flex:none;border-radius:3px;overflow:hidden;
+    border:1px solid var(--c,rgba(124,137,176,.35));
+    background:rgba(10,14,30,.7);
+    box-shadow:0 0 6px rgba(0,0,0,.45);
+  }
+  .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+
+  /* ---------- легенда ---------- */
+  .legend{
+    position:fixed;top:18px;right:20px;z-index:10;
+    display:flex;flex-direction:column;gap:5px;align-items:flex-end;
+  }
+  .legend .cap{font-family:var(--mono);font-size:9px;letter-spacing:.28em;color:var(--muted);margin-bottom:2px}
+  .chip{
+    display:flex;align-items:center;gap:8px;
+    padding:4px 10px;font-size:11px;color:var(--ink);
+    background:rgba(10,14,30,.72);border:1px solid rgba(124,137,176,.22);
+    cursor:pointer;user-select:none;border-radius:2px;
+    clip-path:polygon(6px 0,100% 0,100% 100%,0 100%,0 6px);
+    transition:border-color .2s, opacity .25s, transform .15s;
+  }
+  .chip:hover{transform:translateX(-3px)}
+  .chip .dot{width:9px;height:9px;border-radius:50%;box-shadow:0 0 8px currentColor}
+  .chip .n{font-family:var(--mono);font-size:9.5px;color:var(--muted)}
+  .chip.off{opacity:.32;filter:grayscale(.8)}
+
+  /* ---------- панель «Система» ---------- */
+  .panel{
+    position:fixed;top:0;right:0;bottom:0;width:min(356px,92vw);z-index:30;
+    background:linear-gradient(160deg,rgba(20,26,52,.94),rgba(10,13,28,.94));
+    border-left:1px solid var(--line);
+    box-shadow:-30px 0 80px rgba(6,8,18,.7), inset 0 0 60px rgba(139,92,246,.06);
+    backdrop-filter:blur(14px);
+    transform:translateX(105%);transition:transform .45s cubic-bezier(.2,.9,.25,1);
+    display:flex;flex-direction:column;
+  }
+  .panel.open{transform:translateX(0)}
+  .panel::before{
+    content:"";position:absolute;left:0;top:0;bottom:0;width:2px;z-index:2;
+    background:linear-gradient(180deg,transparent,var(--arcane),var(--mana),transparent);
+    animation:beam 3.2s linear infinite;background-size:100% 300%;
+  }
+  .panel-head{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:16px 18px 12px;border-bottom:1px dashed rgba(139,92,246,.3);
+    position:relative;z-index:1;
+  }
+  .panel-head .tag{font-family:var(--mono);font-size:10px;letter-spacing:.3em;color:var(--arcane-soft)}
+  .panel-head .x{
+    background:none;border:1px solid rgba(124,137,176,.3);color:var(--muted);
+    width:26px;height:26px;cursor:pointer;font-size:13px;line-height:1;border-radius:2px;
+    transition:.2s;
+  }
+  .panel-head .x:hover{color:#fff;border-color:var(--arcane-soft)}
+  .panel-body{padding:18px;overflow:auto;flex:1}
+
+  .poster{
+    position:relative;height:180px;margin:-18px -18px 16px;overflow:hidden;
+    background:#0b0f22;
+  }
+  .poster img{
+    width:100%;height:100%;object-fit:cover;object-position:center 25%;
+    opacity:0;transition:opacity .55s ease;display:block;
+  }
+  .poster img.on{opacity:1}
+  .poster::after{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(180deg,rgba(10,13,28,.04) 45%,rgba(16,20,42,.94) 100%);
+  }
+
+  .rank-row{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+  .rank{
+    font-family:var(--display);font-size:24px;width:48px;height:48px;flex:none;
+    display:grid;place-items:center;color:#0a0d1c;
+    background:linear-gradient(140deg,var(--gold),#f59e0b);
+    clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);
+    box-shadow:0 0 22px rgba(251,191,36,.4);
+  }
+  .rank.s{background:linear-gradient(140deg,#c4b5fd,var(--arcane));box-shadow:0 0 26px rgba(139,92,246,.6)}
+  .rank.na{background:linear-gradient(140deg,#3c4668,#252d4a);color:#8b97c0;box-shadow:none;font-size:18px}
+  .p-title{font-family:var(--display);font-size:18px;line-height:1.25;color:#f2f4ff}
+  .p-meta{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:4px;letter-spacing:.05em;line-height:1.6}
+  .p-meta .og{color:#93a1cc}
+  .ongoing{color:#4ade80}
+  .score-line{margin:13px 0 4px;display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.15em}
+  .score-line b{color:var(--gold);font-size:12px}
+  .bar{height:5px;background:rgba(124,137,176,.15);border-radius:3px;overflow:hidden}
+  .bar i{display:block;height:100%;border-radius:3px;
+    background:linear-gradient(90deg,var(--arcane),var(--mana),var(--gold));
+    box-shadow:0 0 10px rgba(139,92,246,.7);
+    transition:width .7s cubic-bezier(.2,.9,.3,1);
+  }
+  .p-desc{font-size:13px;line-height:1.62;color:#b9c3e8;margin-top:13px;
+    border-left:2px solid rgba(139,92,246,.4);padding-left:11px}
+  .watch{
+    display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+    margin-top:14px;padding:9px 12px;cursor:pointer;text-decoration:none;
+    font-family:var(--mono);font-size:11px;letter-spacing:.18em;color:#0a0d1c;
+    background:linear-gradient(120deg,var(--arcane-soft),var(--mana));
+    clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);
+    transition:filter .2s;
+  }
+  .watch:hover{filter:brightness(1.15)}
+  .rel-cap{font-family:var(--mono);font-size:9.5px;letter-spacing:.3em;color:var(--muted);margin:18px 0 8px}
+  .rel{
+    display:flex;align-items:center;gap:9px;width:100%;
+    background:rgba(139,92,246,.06);border:1px solid rgba(139,92,246,.16);
+    color:var(--ink);padding:5px 10px;margin-bottom:5px;cursor:pointer;
+    font-family:var(--body);font-size:12.5px;text-align:left;border-radius:2px;
+    clip-path:polygon(6px 0,100% 0,100% 100%,0 100%,0 6px);
+    transition:.2s;
+  }
+  .rel:hover{background:rgba(139,92,246,.18);transform:translateX(4px)}
+  .rel .rt{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rel .sc{margin-left:auto;font-family:var(--mono);font-size:9.5px;color:var(--muted);flex:none;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rel-more{font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;padding:4px 0 0}
+
+  /* ---------- HUD ---------- */
+  .hud{position:fixed;right:20px;bottom:20px;z-index:10;display:flex;flex-direction:column;gap:8px}
+  .hud button{
+    width:38px;height:38px;background:rgba(10,14,30,.8);
+    border:1px solid var(--line);color:var(--arcane-soft);
+    font-size:16px;cursor:pointer;border-radius:2px;font-family:var(--mono);
+    clip-path:polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px);
+    transition:.2s;
+  }
+  .hud button:hover{color:#fff;border-color:var(--arcane-soft);box-shadow:0 0 16px rgba(139,92,246,.35)}
+  .hint{
+    position:fixed;bottom:18px;left:50%;translate:-50% 0;z-index:9;
+    font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:#55628c;
+    white-space:nowrap;
+  }
+
+  /* ---------- тултип и тост ---------- */
+  .tip{
+    position:fixed;z-index:40;pointer-events:none;display:none;
+    gap:10px;align-items:center;
+    background:var(--panel);border:1px solid var(--line);
+    padding:7px 11px;font-size:12px;backdrop-filter:blur(8px);
+    clip-path:polygon(7px 0,100% 0,100% 100%,0 100%,0 7px);
+    max-width:300px;
+  }
+  .tip .th{width:36px;height:48px;object-fit:cover;border-radius:3px;flex:none}
+  .tip b{display:block;font-size:12.5px;color:#eef1ff}
+  .tip span{font-family:var(--mono);font-size:10px;color:var(--gold)}
+  .toast{
+    position:fixed;top:44%;left:50%;translate:-50% -50%;z-index:50;
+    font-family:var(--display);font-size:clamp(15px,2.6vw,24px);letter-spacing:.34em;
+    color:#e6e9ff;text-shadow:0 0 30px var(--arcane);text-transform:uppercase;
+    opacity:0;pointer-events:none;text-align:center;padding:0 12px;
+  }
+  .toast.show{animation:gate 2.4s ease forwards}
+
+  @keyframes gate{
+    0%{opacity:0;letter-spacing:.7em;filter:blur(6px)}
+    22%{opacity:1;letter-spacing:.34em;filter:blur(0)}
+    78%{opacity:1}
+    100%{opacity:0;filter:blur(4px)}
+  }
+  @keyframes pop{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:none}}
+  @keyframes beam{from{background-position:0 0}to{background-position:0 300%}}
+
+  @media (max-width:720px){
+    header{max-width:calc(100vw - 40px)}
+    .search{width:min(300px,calc(100vw - 40px))}
+    .legend{top:auto;bottom:64px;left:12px;right:12px;flex-direction:row;flex-wrap:wrap;gap:5px;align-items:flex-start}
+    .legend .cap{display:none}
+    .chip{padding:4px 8px;font-size:10px}
+    .chip .n{display:none}
+    .hint{display:none}
+    .panel{width:100vw;top:auto;height:64vh;border-left:0;border-top:1px solid var(--line);
+      transform:translateY(105%)}
+    .panel.open{transform:translateY(0)}
+    .poster{height:120px}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .panel{transition:none}
+    .toast.show{animation:none;opacity:0}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="cv"></canvas>
+
+<header>
+  <div class="eyebrow">Система // Карта связей</div>
+  <h1>Карта аниме</h1>
+  <div class="sub" id="sub"></div>
+  <div class="search">
+    <span class="icon">◈</span>
+    <input id="q" type="text" placeholder="Найти тайтл… (1307 шт.)" autocomplete="off" spellcheck="false">
+    <div class="drop" id="drop"></div>
+  </div>
+</header>
+
+<div class="legend" id="legend"><div class="cap">Кластеры</div></div>
+
+<aside class="panel" id="panel">
+  <div class="panel-head">
+    <span class="tag">◈ Система // Инфо</span>
+    <button class="x" id="closePanel" title="Закрыть">✕</button>
+  </div>
+  <div class="panel-body" id="panelBody"></div>
+</aside>
+
+<div class="hud">
+  <button id="zin"  title="Приблизить">+</button>
+  <button id="zout" title="Отдалить">−</button>
+  <button id="fit"  title="Показать всю сеть">⤢</button>
+  <button id="replay" title="Открыть врата заново">⟳</button>
+</div>
+
+<div class="hint">колесо — масштаб · перетаскивание — навигация · клик по узлу — детали</div>
+<div class="tip" id="tip"></div>
+<div class="toast" id="toast">⟢ Врата открываются ⟣</div>
+
+<script>
+// показываем ошибку на экране, а не молча в консоль
+window.onerror=function(msg,src,line){
+  var el=document.getElementById("sub");
+  if(el) el.innerHTML='<span style="color:#fb7185">ошибка: '+msg+' ('+(src||"").split("/").pop()+':'+line+')</span>';
+};
+</script>
+<script src="data.js?v=3"></script>
+<script>
+"use strict";
+if(typeof JUTSU_RAW==="undefined"||!Array.isArray(JUTSU_RAW)||JUTSU_RAW.length<100){
+  document.getElementById("sub").innerHTML=
+    '<span style="color:#fb7185">не загрузился data.js — обнови страницу с очисткой кэша (Ctrl+F5)</span>';
+  throw new Error("data.js missing or stale");
+}
+/* ============================================================
+   КЛАСТЕРЫ И ЯДРО
+   Ядро сети: Драгонболл в центре, от него три столпа —
+   Ван Пис, Наруто и Блич. Все остальные 1300+ тайтлов jut.su
+   прорастают ветвями от этих трёх.
+   ============================================================ */
+const CLUSTERS = {
+  action:    {name:"Экшен · сёнэн",       color:"#a78bfa"},
+  sports:    {name:"Спорт",               color:"#fb923c"},
+  fantasy:   {name:"Фэнтези · магия",     color:"#60a5fa"},
+  adventure: {name:"Приключения",         color:"#4ade80"},
+  comedy:    {name:"Комедия · будни",     color:"#2dd4bf"},
+  romance:   {name:"Романтика · драма",   color:"#f9a8d4"},
+  scifi:     {name:"Сай-фай · меха",      color:"#22d3ee"},
+  dark:      {name:"Мрачное · мистика",   color:"#fb7185"},
+};
+const CKEYS = Object.keys(CLUSTERS);
+const CENTER_SLUG = "dragonball";
+const PILLARS = ["oneepiece","naruuto","bleeach"];
+const BRANCH_OF = {
+  action:"naruuto", sports:"naruuto", fantasy:"naruuto",
+  adventure:"oneepiece", comedy:"oneepiece", romance:"oneepiece",
+  scifi:"bleeach", dark:"bleeach",
+};
+
+function clusterOf(g,t){
+  if(t.has("sport")) return "sports";
+  if(t.has("mecha")||t.has("space")) return "scifi";
+  if(t.has("horror")||t.has("vampire")) return "dark";
+  if(g.has("action")&&t.has("shonen")) return "action";
+  if(g.has("fantastic")) return "scifi";
+  if(g.has("mystic")||g.has("thriller")||g.has("psychology")||g.has("detective")) return "dark";
+  if(g.has("romance")||t.has("shojo")) return "romance";
+  if(g.has("adventure")) return "adventure";
+  if(g.has("fantasy")||t.has("magic")||t.has("demons")) return "fantasy";
+  if(g.has("action")) return "action";
+  if(g.has("comedy")||g.has("everyday")||t.has("school")||t.has("parody")||t.has("music")) return "comedy";
+  if(g.has("drama")) return "romance";
+  return "comedy";
+}
+
+/* ============================================================
+   ПОДГОТОВКА УЗЛОВ ИЗ КАТАЛОГА JUT.SU
+   ============================================================ */
+const RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const TAU = Math.PI*2;
+
+const GEN_IDX={}, TYPE_IDX={};
+{
+  let gi=0, ti=0;
+  for(const a of JUTSU_RAW){
+    for(const g of (a.genres||[])) if(!(g in GEN_IDX)) GEN_IDX[g]=gi++;
+    for(const t of (a.types||[]))  if(!(t in TYPE_IDX)) TYPE_IDX[t]=ti++;
+  }
+}
+const STOP = new Set(["приключения","история","истории","легенда","часть","сезон","аниме","девушка","девушки","жизнь","школа","самый","самая","только","когда","моего","моей"]);
+
+const nodes = JUTSU_RAW.map(a=>{
+  const g=new Set(a.genres||[]), t=new Set(a.types||[]);
+  const mE=/(\d+)\s*сери/.exec(a.lines||""), mF=/(\d+)\s*фильм/.exec(a.lines||"");
+  const eps=mE?+mE[1]:0, films=mF?+mF[1]:0;
+  const imp=Math.max(eps+films*12, 4);
+  const c=clusterOf(g,t);
+  let gm=0, tm=0;
+  for(const x of g) gm|=1<<GEN_IDX[x];
+  for(const x of t) tm|=1<<TYPE_IDX[x];
+  const tokens=new Set();
+  for(const w of (a.ru||"").toLowerCase().replace(/ё/g,"е").split(/[^a-zа-я0-9]+/))
+    if(w.length>=5 && !STOP.has(w)) tokens.add(w);
+  for(const w of (a.slug||"").split("-")) if(w.length>=5) tokens.add(w);
+  const isCore = a.slug===CENTER_SLUG || PILLARS.includes(a.slug);
+  let r = 3.2 + 1.35*Math.log2(imp+2);
+  if(isCore) r += 5;
+  return {
+    slug:a.slug, ru:a.ru, orig:a.orig, imgRemote:a.img, lines:a.lines,
+    desc:a.desc, ongoing:!!a.ongoing,
+    year:(a.years&&a.years.length)?Math.min(...a.years):0,
+    c, gm, tm, tokens, imp, eps, films, isCore,
+    x:0,y:0,vx:0,vy:0,r,
+    visible:false, appear:0, imgA:0, revealAt:Infinity,
+    depth:0, parent:null, kids:0,
+    spr:null, imgState:0, triedRemote:false,
+    ph:Math.random()*TAU,
+  };
+});
+const bySlug = Object.fromEntries(nodes.map(n=>[n.slug,n]));
+const CENTER = bySlug[CENTER_SLUG];
+CENTER.r += 4;
+
+/* ============================================================
+   ГАЛАКТИКИ: похожие аниме группируются в тематические галактики,
+   в каждой — хаб (самый крупный тайтл темы), от него ветвится
+   остальное. Хабы галактик подключены к столпам ядра.
+   ============================================================ */
+function galaxyOf(n){
+  const G=x=>{const i=GEN_IDX[x];return i!==undefined&&((n.gm>>i)&1);};
+  const T=x=>{const i=TYPE_IDX[x];return i!==undefined&&((n.tm>>i)&1);};
+  if(T("sport")) return "Спорт";
+  if(T("mecha")||T("space")) return "Меха и космос";
+  if(T("music")) return "Музыка";
+  if(T("horror")||T("vampire")) return "Хоррор и вампиры";
+  if(T("samurai")||T("historical")) return "Самураи и история";
+  if(T("military")||T("police")) return "Война и служба";
+  if(T("game")) return "Игры и виртуальность";
+  if(G("detective")) return "Детектив";
+  if(G("psychology")||G("thriller")) return "Триллер и психология";
+  if(T("demons")) return "Демоны и духи";
+  if(G("mystic")) return "Мистика";
+  if(T("shojo")) return "Сёдзё";
+  if(G("romance")&&T("school")) return "Школьная романтика";
+  if(G("romance")) return "Романтика и драма";
+  if(G("fantastic")) return "Фантастика";
+  if(T("magic")) return "Магия";
+  if(G("fantasy")&&G("adventure")) return "Фэнтези-приключения";
+  if(G("fantasy")) return "Фэнтези";
+  if(G("action")&&T("shonen")) return "Сёнэн-экшен";
+  if(G("action")) return "Экшен";
+  if(G("everyday")) return "Повседневность";
+  if(G("comedy")) return "Комедия";
+  if(G("adventure")) return "Приключения";
+  return "Драма и прочее";
+}
+const GAL_BRANCH={
+  "Спорт":"naruuto","Сёнэн-экшен":"naruuto","Экшен":"naruuto","Самураи и история":"naruuto",
+  "Война и служба":"naruuto","Демоны и духи":"naruuto","Магия":"naruuto","Фэнтези":"naruuto",
+  "Приключения":"oneepiece","Фэнтези-приключения":"oneepiece","Комедия":"oneepiece",
+  "Повседневность":"oneepiece","Школьная романтика":"oneepiece","Сёдзё":"oneepiece",
+  "Романтика и драма":"oneepiece","Музыка":"oneepiece","Драма и прочее":"oneepiece",
+  "Хоррор и вампиры":"bleeach","Мистика":"bleeach","Триллер и психология":"bleeach",
+  "Детектив":"bleeach","Фантастика":"bleeach","Меха и космос":"bleeach","Игры и виртуальность":"bleeach",
+};
+const DEF_GAL={action:"Сёнэн-экшен",sports:"Спорт",fantasy:"Фэнтези",adventure:"Приключения",
+  comedy:"Комедия",romance:"Романтика и драма",scifi:"Фантастика",dark:"Мистика"};
+
+const galMap={};
+for(const n of nodes){
+  if(n.isCore) continue;
+  const g=galaxyOf(n);
+  (galMap[g]=galMap[g]||[]).push(n);
+}
+// слишком мелкие группы вливаем в базовую галактику их кластера
+const galSizes={}; for(const k in galMap) galSizes[k]=galMap[k].length;
+const finalMap={};
+for(const name in galMap){
+  const keep=galSizes[name]>=6;
+  for(const n of galMap[name]){
+    let t=keep?name:DEF_GAL[n.c];
+    if(!keep&&(t===name||galSizes[t]===undefined||galSizes[t]<6))
+      t=n.c==="adventure"||n.c==="fantasy"?"Фэнтези-приключения":"Драма и прочее";
+    (finalMap[t]=finalMap[t]||[]).push(n);
+  }
+}
+const GALAXIES=[];
+for(const name in finalMap){
+  const members=finalMap[name];
+  let hub=members[0];
+  for(const n of members) if(n.imp>hub.imp) hub=n;
+  const cc={}; let color=CLUSTERS[hub.c].color, bc=0;
+  for(const n of members){cc[n.c]=(cc[n.c]||0)+1; if(cc[n.c]>bc){bc=cc[n.c];color=CLUSTERS[n.c].color;}}
+  const g={name, members, hub, count:members.length,
+    branch:GAL_BRANCH[name]||"oneepiece", color,
+    R:Math.sqrt(members.length*5200/Math.PI)+100, x:0, y:0};
+  members.forEach(n=>n.galRef=g);
+  hub.isHub=true; hub.r+=2;
+  GALAXIES.push(g);
+}
+GALAXIES.sort((a,b)=>b.R-a.R);
+
+/* размещение: каждая ветвь — свой клин, галактики пакуются без наездов */
+const BR_ANGLE={naruuto:-Math.PI/2, oneepiece:Math.PI/6, bleeach:Math.PI*5/6};
+const PILLAR_POS={};
+for(const s of PILLARS) PILLAR_POS[s]={x:Math.cos(BR_ANGLE[s])*620, y:Math.sin(BR_ANGLE[s])*620};
+{
+  const placed=[];
+  const OFF=[0,.28,-.28,.55,-.55,.8,-.8,1.02,-1.02];
+  for(const s of PILLARS){
+    for(const g of GALAXIES){
+      if(g.branch!==s) continue;
+      let done=false;
+      for(let rad=1250; rad<=5400&&!done; rad+=170){
+        for(const off of OFF){
+          const a=BR_ANGLE[s]+off;
+          const x=Math.cos(a)*rad, y=Math.sin(a)*rad;
+          if(Math.hypot(x,y)<g.R+820) continue;
+          let ok=true;
+          for(const p of placed) if(Math.hypot(x-p.x,y-p.y)<g.R+p.R+180){ok=false;break;}
+          if(ok){g.x=x;g.y=y;placed.push(g);done=true;break;}
+        }
+      }
+      if(!done){g.x=Math.cos(BR_ANGLE[s])*5600;g.y=Math.sin(BR_ANGLE[s])*5600;placed.push(g);}
+    }
+  }
+}
+
+/* ============================================================
+   ПОСТРОЕНИЕ ДЕРЕВА ОТ ЯДРА
+   ============================================================ */
+function pc(x){x-=x>>1&0x55555555;x=(x&0x33333333)+(x>>2&0x33333333);x=x+(x>>4)&0x0f0f0f0f;return x*0x01010101>>24;}
+function jac(a,b){const i=pc(a&b);if(!i)return 0;return i/pc(a|b);}
+function tokenCommon(A,B){
+  let c=0;
+  const [s,l]=A.size<B.size?[A,B]:[B,A];
+  for(const w of s) if(l.has(w)){c++;if(c>=2)break;}
+  return c;
+}
+function pairSim(p,n){
+  let s = 2.2*jac(p.gm,n.gm) + 1.2*jac(p.tm,n.tm);
+  s += 1.7*tokenCommon(p.tokens,n.tokens);
+  if(p.c===n.c) s+=1.0;
+  if(BRANCH_OF[p.c]===BRANCH_OF[n.c]) s+=.5;
+  if(p.year&&n.year) s+=Math.max(0,.5-Math.abs(p.year-n.year)*.05);
+  return s;
+}
+
+const edges=[]; // {a,b,appear,ck,rest}
+const adjSet=new Set();
+const nbr={}; nodes.forEach(n=>nbr[n.slug]=new Set());
+function addEdge(a,b,ck){
+  const k=a.slug<b.slug?a.slug+"|"+b.slug:b.slug+"|"+a.slug;
+  if(adjSet.has(k)) return;
+  adjSet.add(k);
+  nbr[a.slug].add(b.slug); nbr[b.slug].add(a.slug);
+  edges.push({a,b,appear:0,ck:ck||b.c,
+    rest: 72 + (a.r+b.r)*1.7 + (a.c===b.c?0:34)});
+}
+
+{
+  // ствол: Драгонболл → три столпа (визуальные линии, без физики)
+  CENTER.depth=0;
+  for(const s of PILLARS){
+    const p=bySlug[s];
+    p.depth=1; p.parent=CENTER; CENTER.kids++;
+    addEdge(CENTER,p,p.c);
+    const e=edges[edges.length-1]; e.trunk=true; e.noSim=true;
+  }
+  // хаб каждой галактики → столп своей ветви
+  for(const g of GALAXIES){
+    const pil=bySlug[g.branch];
+    g.hub.depth=2; g.hub.parent=pil; pil.kids++;
+    addEdge(pil,g.hub,g.hub.c);
+    const e=edges[edges.length-1]; e.spoke=true; e.noSim=true;
+  }
+  // внутри галактики — от хаба по похожести, по убыванию «веса»
+  for(const g of GALAXIES){
+    const pool=[g.hub];
+    const rest=g.members.filter(n=>n!==g.hub).sort((a,b)=>b.imp-a.imp);
+    for(const n of rest){
+      let best=null,bs=-1e9;
+      for(const p of pool){
+        let s=pairSim(p,n) - .38*p.kids - .20*Math.max(0,p.depth-2);
+        if(s>bs){bs=s;best=p;}
+      }
+      n.parent=best; n.depth=best.depth+1; best.kids++;
+      addEdge(best,n,n.c);
+      pool.push(n);
+    }
+  }
+  // перекрёстные связи — только внутри своей галактики
+  const cand=[];
+  for(const g of GALAXIES){
+    const arr=g.members;
+    for(let i=0;i<arr.length;i++){
+      let best=null,bs=0;
+      for(let j=0;j<arr.length;j++){
+        if(i===j) continue;
+        const s=pairSim(arr[i],arr[j]);
+        if(s>bs){bs=s;best=arr[j];}
+      }
+      if(best&&bs>2.4) cand.push([bs,arr[i],best]);
+    }
+  }
+  cand.sort((a,b)=>b[0]-a[0]);
+  const deg={};
+  let added=0;
+  for(const [s,a,b] of cand){
+    if(added>=420) break;
+    if((deg[a.slug]||0)>2||(deg[b.slug]||0)>2) continue;
+    const k=a.slug<b.slug?a.slug+"|"+b.slug:b.slug+"|"+a.slug;
+    if(adjSet.has(k)) continue;
+    addEdge(a,b,a.c); added++;
+    deg[a.slug]=(deg[a.slug]||0)+1; deg[b.slug]=(deg[b.slug]||0)+1;
+  }
+}
+const MAXD = Math.max(...nodes.map(n=>n.depth));
+
+/* стартовая раскладка: ядро, столпы, хабы в центрах галактик, ветви — от хабов */
+{
+  CENTER.x=0; CENTER.y=0;
+  for(const s of PILLARS){ bySlug[s].x=PILLAR_POS[s].x; bySlug[s].y=PILLAR_POS[s].y; }
+  const q=[];
+  for(const g of GALAXIES){ g.hub.x=g.x; g.hub.y=g.y; q.push(g.hub); }
+  const kids={};
+  nodes.forEach(n=>{ if(n.parent&&!n.isCore) (kids[n.parent.slug]=kids[n.parent.slug]||[]).push(n); });
+  while(q.length){
+    const p=q.shift();
+    const ch=kids[p.slug]||[];
+    ch.forEach((n,i)=>{
+      const a=Math.random()*TAU;
+      const d=78+Math.random()*62;
+      n.x=p.x+Math.cos(a)*d; n.y=p.y+Math.sin(a)*d;
+      q.push(n);
+    });
+  }
+}
+
+/* ============================================================
+   КАНВАС, КАМЕРА, ЗВЁЗДЫ
+   ============================================================ */
+const cv=document.getElementById("cv");
+const ctx=cv.getContext("2d");
+let W=0,H=0,DPR=1;
+function resize(){
+  DPR=Math.min(devicePixelRatio||1,2);
+  W=innerWidth; H=innerHeight;
+  cv.width=W*DPR; cv.height=H*DPR;
+  cv.style.width=W+"px"; cv.style.height=H+"px";
+}
+addEventListener("resize",resize); resize();
+
+const ZMIN=.05, ZMAX=3.5;
+const cam={x:0,y:0,s:.5};
+let fly=null;
+function flyTo(x,y,s,ms=750){
+  if(RM){cam.x=x;cam.y=y;cam.s=s;fly=null;return;}
+  fly={fx:cam.x,fy:cam.y,fs:cam.s,tx:x,ty:y,ts:s,t0:performance.now(),ms};
+}
+const w2sX=x=>(x-cam.x)*cam.s+W/2;
+const w2sY=y=>(y-cam.y)*cam.s+H/2;
+const s2wX=x=>(x-W/2)/cam.s+cam.x;
+const s2wY=y=>(y-H/2)/cam.s+cam.y;
+
+function fitView(ms){
+  let minX=1e9,maxX=-1e9,minY=1e9,maxY=-1e9,any=false;
+  nodes.forEach(n=>{
+    if(!n.visible&&ms!==0) return;
+    any=true;
+    minX=Math.min(minX,n.x);maxX=Math.max(maxX,n.x);
+    minY=Math.min(minY,n.y);maxY=Math.max(maxY,n.y);
+  });
+  for(const g of GALAXIES){
+    minX=Math.min(minX,g.x-g.R);maxX=Math.max(maxX,g.x+g.R);
+    minY=Math.min(minY,g.y-g.R);maxY=Math.max(maxY,g.y+g.R);
+    any=true;
+  }
+  if(!any){minX=-600;maxX=600;minY=-600;maxY=600;}
+  const s=Math.min(ZMAX,Math.max(ZMIN,Math.min(W/(maxX-minX+460),H/(maxY-minY+460))));
+  if(ms===0){cam.x=(minX+maxX)/2;cam.y=(minY+maxY)/2;cam.s=s;fly=null;}
+  else flyTo((minX+maxX)/2,(minY+maxY)/2,s,ms);
+}
+
+const stars=Array.from({length:230},()=>({
+  x:Math.random()*2-1,y:Math.random()*2-1,
+  z:.35+Math.random()*.65,a:.15+Math.random()*.5,
+  sp:.4+Math.random()*1.4,ph:Math.random()*TAU
+}));
+
+/* ============================================================
+   СПРАЙТЫ УЗЛОВ (запечённые: свечение + обложка + кольцо)
+   ============================================================ */
+function hexA(hex,a){
+  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+const SPR=112, SPR_R=40; // радиус картинки внутри спрайта
+function bakeSprite(n,img){
+  const c=document.createElement("canvas"); c.width=c.height=SPR;
+  const g=c.getContext("2d");
+  const col=CLUSTERS[n.c].color, m=SPR/2;
+  const gr=g.createRadialGradient(m,m,SPR_R*.55,m,m,m);
+  gr.addColorStop(0,hexA(col,.55)); gr.addColorStop(.72,hexA(col,.16)); gr.addColorStop(1,hexA(col,0));
+  g.fillStyle=gr; g.fillRect(0,0,SPR,SPR);
+  g.save();
+  g.beginPath(); g.arc(m,m,SPR_R,0,TAU); g.clip();
+  const iw=img.naturalWidth,ih=img.naturalHeight;
+  const s=Math.max(SPR_R*2/iw,SPR_R*2/ih);
+  g.drawImage(img,m-iw*s/2,m-ih*s/2,iw*s,ih*s);
+  g.restore();
+  g.strokeStyle=hexA(col,.95); g.lineWidth=3;
+  g.beginPath(); g.arc(m,m,SPR_R-1,0,TAU); g.stroke();
+  // мип-уровни, чтобы не масштабировать 112px в мелочь каждый кадр
+  const c56=document.createElement("canvas"); c56.width=c56.height=56;
+  c56.getContext("2d").drawImage(c,0,0,56,56);
+  const c28=document.createElement("canvas"); c28.width=c28.height=28;
+  c28.getContext("2d").drawImage(c56,0,0,28,28);
+  n.spr=[c28,c56,c];
+}
+function sprMip(spr,dw){return dw>=80?spr[2]:dw>=36?spr[1]:spr[0];}
+const DOT=64, DOT_R=17;
+const dotSprites={};
+for(const k of CKEYS){
+  const c=document.createElement("canvas"); c.width=c.height=DOT;
+  const g=c.getContext("2d"), col=CLUSTERS[k].color, m=DOT/2;
+  const gr=g.createRadialGradient(m,m,DOT_R*.4,m,m,m);
+  gr.addColorStop(0,hexA(col,.6)); gr.addColorStop(.6,hexA(col,.18)); gr.addColorStop(1,hexA(col,0));
+  g.fillStyle=gr; g.fillRect(0,0,DOT,DOT);
+  g.fillStyle=col;
+  g.beginPath(); g.arc(m,m,DOT_R,0,TAU); g.fill();
+  g.fillStyle="rgba(255,255,255,.92)";
+  g.beginPath(); g.arc(m,m,DOT_R*.36,0,TAU); g.fill();
+  dotSprites[k]=c;
+}
+
+/* ленивая подгрузка обложек: только видимые и достаточно крупные */
+let imgLoading=0;
+function startLoad(n){
+  if(n.imgState!==0) return;
+  n.imgState=1; imgLoading++;
+  const im=new Image();
+  im.decoding="async";
+  im.onload=()=>{imgLoading--; n.imgState=2; bakeSprite(n,im);};
+  im.onerror=()=>{
+    if(!n.triedRemote&&n.imgRemote){n.triedRemote=true; im.src=n.imgRemote;}
+    else {imgLoading--; n.imgState=3;}
+  };
+  im.src="img/"+n.slug+".jpg";
+}
+const imgWish=[];
+function pumpImages(){
+  if(imgLoading>=10||!imgWish.length){imgWish.length=0;return;}
+  imgWish.sort((a,b)=>b.r-a.r);
+  for(const n of imgWish){
+    if(imgLoading>=10) break;
+    startLoad(n);
+  }
+  imgWish.length=0;
+}
+
+/* ============================================================
+   СИМУЛЯЦИЯ СИЛ (сетка — для тысячи узлов)
+   ============================================================ */
+let alpha=1;
+const CELL=150;
+function simTick(){
+  if(alpha<=.02&&!drag.node) return;
+  const vis=[];
+  for(const n of nodes) if(n.visible) vis.push(n);
+  if(vis.length<2) return;
+  const k=Math.max(alpha,.05);
+
+  // отталкивание — только соседние ячейки сетки
+  const grid=new Map();
+  for(let i=0;i<vis.length;i++){
+    const n=vis[i];
+    const key=(Math.floor(n.x/CELL)+4096)*8192+(Math.floor(n.y/CELL)+4096);
+    let cell=grid.get(key);
+    if(!cell){cell=[];grid.set(key,cell);}
+    cell.push(n);
+  }
+  for(const n of vis){
+    const cx=Math.floor(n.x/CELL), cy=Math.floor(n.y/CELL);
+    for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++){
+      const cell=grid.get((cx+dx+4096)*8192+(cy+dy+4096));
+      if(!cell) continue;
+      for(const m of cell){
+        if(m===n) continue;
+        let ddx=n.x-m.x, ddy=n.y-m.y;
+        let d2=ddx*ddx+ddy*ddy;
+        if(d2>CELL*CELL*2.2) continue;
+        if(d2<1){ddx=Math.random()-.5;ddy=Math.random()-.5;d2=1;}
+        const f=(3400+26*(n.r+m.r))/(d2+60)*k;
+        const d=Math.sqrt(d2);
+        n.vx+=ddx/d*f; n.vy+=ddy/d*f;
+      }
+    }
+  }
+  // пружины (кроме визуальных линий ядра)
+  for(const e of edges){
+    if(e.noSim||!e.a.visible||!e.b.visible) continue;
+    let dx=e.b.x-e.a.x, dy=e.b.y-e.a.y;
+    const d=Math.sqrt(dx*dx+dy*dy)||1;
+    const f=(d-e.rest)*.026*k, fx=dx/d*f, fy=dy/d*f;
+    e.a.vx+=fx; e.a.vy+=fy; e.b.vx-=fx; e.b.vy-=fy;
+  }
+  // гравитация к центру своей галактики, якоря, интеграция
+  for(const n of vis){
+    const A=n.galRef;
+    if(A){n.vx+=(A.x-n.x)*.0016*k; n.vy+=(A.y-n.y)*.0016*k;}
+    if(n!==drag.node){
+      n.vx*=.85; n.vy*=.85;
+      const sp=Math.hypot(n.vx,n.vy);
+      if(sp>8){n.vx*=8/sp;n.vy*=8/sp;}
+      n.x+=n.vx; n.y+=n.vy;
+    }
+  }
+  for(const g of GALAXIES){
+    g.hub.x+=(g.x-g.hub.x)*.05; g.hub.y+=(g.y-g.hub.y)*.05;
+  }
+  for(const s of PILLARS){
+    const p=bySlug[s];
+    p.x+=(PILLAR_POS[s].x-p.x)*.05;
+    p.y+=(PILLAR_POS[s].y-p.y)*.05;
+  }
+  CENTER.x=0; CENTER.y=0; CENTER.vx=0; CENTER.vy=0;
+  alpha=Math.max(alpha*.9965,.015);
+}
+
+/* ============================================================
+   «ОТКРЫТИЕ ВРАТ»: волны по глубине дерева
+   ============================================================ */
+const ripples=[];
+let revealed=0;
+function scheduleBloom(){
+  const t0=performance.now()+(RM?0:600);
+  const waves={};
+  nodes.forEach(n=>{(waves[n.depth]=waves[n.depth]||[]).push(n);});
+  const perWave=Math.max(240,Math.min(750,9000/(MAXD+1)));
+  for(const d in waves){
+    const arr=waves[d];
+    arr.sort(()=>Math.random()-.5);
+    const stag=Math.min(6,900/arr.length);
+    arr.forEach((n,i)=>{
+      n.visible=false; n.appear=0;
+      n.revealAt=RM?0:t0+d*perWave+i*stag;
+    });
+  }
+  edges.forEach(e=>e.appear=0);
+  revealed=0; alpha=1;
+  if(!RM){
+    const toast=document.getElementById("toast");
+    toast.classList.remove("show");
+    void toast.offsetWidth;
+    toast.classList.add("show");
+    for(let d=0;d<=Math.min(MAXD,10);d+=2) ripples.push({t0:t0+d*perWave});
+  }
+}
+function updateReveal(now){
+  for(const n of nodes){
+    if(!n.visible&&now>=n.revealAt){
+      n.visible=true; revealed++;
+      if(n.parent&&!RM){
+        const a=Math.atan2(n.parent.y,n.parent.x)+(Math.random()-.5)*2;
+        n.x=n.parent.x+Math.cos(a)*14; n.y=n.parent.y+Math.sin(a)*14;
+        n.vx=Math.cos(a)*2.4; n.vy=Math.sin(a)*2.4;
+      }
+      alpha=Math.min(1,alpha+.02);
+    }
+    if(n.visible&&n.appear<1) n.appear=Math.min(1,n.appear+(RM?1:.05));
+  }
+  for(const e of edges){
+    if(e.a.visible&&e.b.visible&&e.a.appear>.5&&e.b.appear>.5&&e.appear<1)
+      e.appear=Math.min(1,e.appear+(RM?1:.06));
+  }
+}
+
+/* ============================================================
+   ВЗАИМОДЕЙСТВИЕ
+   ============================================================ */
+const activeClusters=new Set(CKEYS);
+let hoverN=null, selectedN=null;
+const drag={node:null,panning:false,moved:0,sx:0,sy:0,cx:0,cy:0};
+const pointers=new Map(); let pinch0=null;
+
+function nodeAt(px,py){
+  const wx=s2wX(px), wy=s2wY(py);
+  let best=null,bd=1e9;
+  const hitPad=8/cam.s;
+  for(const n of nodes){
+    if(!n.visible||!activeClusters.has(n.c)) continue;
+    const dx=n.x-wx; if(dx>60/cam.s+n.r||dx<-60/cam.s-n.r) continue;
+    const dy=n.y-wy;
+    const d=Math.hypot(dx,dy);
+    if(d<n.r+hitPad&&d<bd){bd=d;best=n;}
+  }
+  return best;
+}
+
+cv.addEventListener("pointerdown",e=>{
+  cv.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pointers.size===2){
+    const p=[...pointers.values()];
+    pinch0={d:Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y),s:cam.s};
+    drag.node=null; drag.panning=false; return;
+  }
+  const n=nodeAt(e.clientX,e.clientY);
+  drag.moved=0; drag.sx=e.clientX; drag.sy=e.clientY;
+  if(n){drag.node=n; alpha=Math.max(alpha,.25);}
+  else {drag.panning=true; drag.cx=cam.x; drag.cy=cam.y; cv.classList.add("grabbing");}
+});
+const tip=document.getElementById("tip");
+let tipFor=null;
+cv.addEventListener("pointermove",e=>{
+  if(pointers.has(e.pointerId)) pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pointers.size===2&&pinch0){
+    const p=[...pointers.values()];
+    const d=Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y);
+    cam.s=Math.min(ZMAX,Math.max(ZMIN,pinch0.s*d/pinch0.d));
+    return;
+  }
+  const mx=e.clientX,my=e.clientY;
+  if(drag.node){
+    drag.moved+=Math.abs(mx-drag.sx)+Math.abs(my-drag.sy); drag.sx=mx; drag.sy=my;
+    drag.node.x=s2wX(mx); drag.node.y=s2wY(my);
+    drag.node.vx=0; drag.node.vy=0; alpha=Math.max(alpha,.2);
+    return;
+  }
+  if(drag.panning){
+    drag.moved+=Math.abs(mx-drag.sx)+Math.abs(my-drag.sy);
+    cam.x=drag.cx-(mx-drag.sx)/cam.s; cam.y=drag.cy-(my-drag.sy)/cam.s;
+    fly=null; return;
+  }
+  hoverN=nodeAt(mx,my);
+  cv.classList.toggle("point",!!hoverN);
+  if(hoverN){
+    if(tipFor!==hoverN){
+      tipFor=hoverN;
+      tip.innerHTML=`<img class="th" src="img/${hoverN.slug}.jpg" alt="" onerror="this.style.display='none'"><div><b>${hoverN.ru}</b><span>${hoverN.lines||""}</span></div>`;
+    }
+    tip.style.display="flex";
+    tip.style.left=Math.min(mx+14,W-310)+"px";
+    tip.style.top=Math.min(my+14,H-78)+"px";
+  } else {tip.style.display="none"; tipFor=null;}
+});
+function endPointer(e){
+  pointers.delete(e.pointerId);
+  if(pointers.size<2) pinch0=null;
+  cv.classList.remove("grabbing");
+  if(drag.node&&drag.moved<6) select(drag.node);
+  else if(drag.panning&&drag.moved<6&&selectedN) closePanel();
+  drag.node=null; drag.panning=false;
+}
+cv.addEventListener("pointerup",endPointer);
+cv.addEventListener("pointercancel",endPointer);
+
+cv.addEventListener("wheel",e=>{
+  e.preventDefault();
+  const f=e.deltaY<0?1.13:1/1.13;
+  const wx=s2wX(e.clientX), wy=s2wY(e.clientY);
+  cam.s=Math.min(ZMAX,Math.max(ZMIN,cam.s*f));
+  cam.x=wx-(e.clientX-W/2)/cam.s;
+  cam.y=wy-(e.clientY-H/2)/cam.s;
+  fly=null;
+},{passive:false});
+
+/* ============================================================
+   ПАНЕЛЬ «СИСТЕМА // ИНФО» + рейтинг с MAL (Jikan)
+   ============================================================ */
+const panel=document.getElementById("panel");
+const lsGet=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
+const lsSet=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
+function rank(s){return s>=8.6?"S":s>=8.0?"A":s>=7.3?"B":s>=6.5?"C":"D";}
+
+async function fetchScore(n){
+  const key="animap2:sc:"+n.slug;
+  const c=lsGet(key);
+  if(c){try{return JSON.parse(c)}catch(e){}}
+  const q=(n.orig||n.ru).slice(0,90);
+  const r=await fetch("https://api.jikan.moe/v4/anime?q="+encodeURIComponent(q)+"&limit=1");
+  if(!r.ok) throw 0;
+  const j=await r.json();
+  const d=j.data&&j.data[0];
+  const v={s:(d&&d.score)||0};
+  lsSet(key,JSON.stringify(v));
+  return v;
+}
+
+function relListOf(n){
+  return [...nbr[n.slug]].map(s=>bySlug[s]).sort((a,b)=>b.imp-a.imp);
+}
+function select(n){
+  selectedN=n;
+  startLoad(n);
+  flyTo(n.x,n.y,Math.max(cam.s,1.0));
+  const rel=relListOf(n);
+  const REL_MAX=24;
+  const coreTag=n.slug===CENTER_SLUG?" · ЯДРО СЕТИ":(PILLARS.includes(n.slug)?" · СТОЛП ЯДРА":"");
+  document.getElementById("panelBody").innerHTML=`
+    <div class="poster"><img src="img/${n.slug}.jpg" alt=""
+      onload="this.classList.add('on')"
+      onerror="if(this.dataset.f){this.remove()}else{this.dataset.f=1;this.src='${(n.imgRemote||"").replace(/'/g,"")}'}"></div>
+    <div class="rank-row">
+      <div class="rank na" id="rankBadge">…</div>
+      <div>
+        <div class="p-title">${n.ru}</div>
+        <div class="p-meta"><span class="og">${n.orig||""}</span><br>
+          ${n.year?n.year+" · ":""}${CLUSTERS[n.c].name}${n.galRef?` · галактика «${n.galRef.name}»${n.isHub?" (хаб)":""}`:""}${coreTag}<br>
+          ${n.lines||""}${n.ongoing?' · <span class="ongoing">онгоинг</span>':""}
+        </div>
+      </div>
+    </div>
+    <div class="score-line"><span>Рейтинг MAL</span><b id="scoreVal">…</b></div>
+    <div class="bar"><i id="scoreBar" style="width:0"></i></div>
+    ${n.desc?`<p class="p-desc">${n.desc}</p>`:""}
+    <a class="watch" href="https://jut.su/${n.slug}/" target="_blank" rel="noopener">▶ СМОТРЕТЬ НА JUT.SU</a>
+    <div class="rel-cap">◈ Связи · ${rel.length}</div>
+    ${rel.slice(0,REL_MAX).map(r=>`
+      <button class="rel" data-id="${r.slug}">
+        <span class="thumb" style="--c:${CLUSTERS[r.c].color}"><img loading="lazy" src="img/${r.slug}.jpg" alt="" onerror="this.remove()"></span>
+        <span class="rt">${r.ru}</span><span class="sc">${r.eps?r.eps+" сер.":(r.films?r.films+" ф.":"")}</span>
+      </button>`).join("")}
+    ${rel.length>REL_MAX?`<div class="rel-more">…и ещё ${rel.length-REL_MAX}</div>`:""}
+  `;
+  panel.classList.add("open");
+  panel.querySelectorAll(".rel").forEach(b=>b.onclick=()=>select(bySlug[b.dataset.id]));
+  const me=n;
+  fetchScore(n).then(v=>{
+    if(selectedN!==me) return;
+    const badge=document.getElementById("rankBadge");
+    const sv=document.getElementById("scoreVal"), sb=document.getElementById("scoreBar");
+    if(v.s>0){
+      const rk=rank(v.s);
+      badge.textContent=rk;
+      badge.className="rank"+(rk==="S"?" s":"");
+      sv.textContent="★ "+v.s.toFixed(1);
+      requestAnimationFrame(()=>{sb.style.width=Math.min(100,Math.max(4,(v.s-5)/4.5*100)).toFixed(0)+"%";});
+    } else {badge.textContent="—"; sv.textContent="—";}
+  }).catch(()=>{
+    if(selectedN!==me) return;
+    const badge=document.getElementById("rankBadge"), sv=document.getElementById("scoreVal");
+    if(badge) badge.textContent="—";
+    if(sv) sv.textContent="—";
+  });
+}
+function closePanel(){selectedN=null;panel.classList.remove("open");}
+document.getElementById("closePanel").onclick=closePanel;
+addEventListener("keydown",e=>{if(e.key==="Escape"){closePanel();document.getElementById("drop").classList.remove("open");}});
+
+/* ============================================================
+   ПОИСК И ЛЕГЕНДА
+   ============================================================ */
+const q=document.getElementById("q"), dropEl=document.getElementById("drop");
+let dropIdx=-1;
+function renderDrop(list){
+  dropIdx=-1;
+  if(!list.length){dropEl.classList.remove("open");return;}
+  dropEl.innerHTML=list.slice(0,10).map(n=>`
+    <button data-id="${n.slug}">
+      <span class="thumb" style="--c:${CLUSTERS[n.c].color}"><img loading="lazy" src="img/${n.slug}.jpg" alt="" onerror="this.remove()"></span>
+      <span class="rt">${n.ru}</span><span class="sc">${n.orig||""}</span>
+    </button>`).join("");
+  dropEl.classList.add("open");
+  dropEl.querySelectorAll("button").forEach(b=>b.onmousedown=e=>{
+    e.preventDefault(); select(bySlug[b.dataset.id]);
+    dropEl.classList.remove("open"); q.value="";
+  });
+}
+q.addEventListener("input",()=>{
+  const v=q.value.trim().toLowerCase();
+  if(!v){dropEl.classList.remove("open");return;}
+  renderDrop(nodes.filter(n=>n.ru.toLowerCase().includes(v)||(n.orig||"").toLowerCase().includes(v)));
+});
+q.addEventListener("keydown",e=>{
+  const btns=[...dropEl.querySelectorAll("button")];
+  if((e.key==="ArrowDown"||e.key==="ArrowUp")&&btns.length){
+    e.preventDefault();
+    dropIdx=(dropIdx+(e.key==="ArrowDown"?1:-1)+btns.length)%btns.length;
+    btns.forEach((b,i)=>b.classList.toggle("active",i===dropIdx));
+    return;
+  }
+  if(e.key==="Enter"){
+    const b=btns[dropIdx]||btns[0];
+    if(b){select(bySlug[b.dataset.id]); dropEl.classList.remove("open"); q.value=""; q.blur();}
+  }
+});
+q.addEventListener("blur",()=>setTimeout(()=>dropEl.classList.remove("open"),150));
+
+const legend=document.getElementById("legend");
+CKEYS.forEach(k=>{
+  const cnt=nodes.filter(n=>n.c===k).length;
+  const el=document.createElement("div");
+  el.className="chip";
+  el.innerHTML=`<span class="dot" style="background:${CLUSTERS[k].color};color:${CLUSTERS[k].color}"></span>${CLUSTERS[k].name}<span class="n">${cnt}</span>`;
+  el.onclick=()=>{
+    el.classList.toggle("off");
+    el.classList.contains("off")?activeClusters.delete(k):activeClusters.add(k);
+  };
+  legend.appendChild(el);
+});
+
+/* ============================================================
+   HUD
+   ============================================================ */
+function zoomBy(f){cam.s=Math.min(ZMAX,Math.max(ZMIN,cam.s*f));fly=null;}
+document.getElementById("zin").onclick=()=>zoomBy(1.3);
+document.getElementById("zout").onclick=()=>zoomBy(1/1.3);
+document.getElementById("fit").onclick=()=>fitView(750);
+document.getElementById("replay").onclick=()=>{
+  closePanel(); fitView(0); scheduleBloom();
+};
+
+/* ============================================================
+   ОТРИСОВКА
+   ============================================================ */
+let dashOff=0;
+const easeOutBack=t=>{const c=1.70158;return 1+(c+1)*Math.pow(t-1,3)+c*Math.pow(t-1,2);};
+
+function draw(now){
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  ctx.clearRect(0,0,W,H);
+
+  for(const st of stars){
+    const a=RM?st.a:st.a*(.55+.45*Math.sin(now/1000*st.sp+st.ph));
+    ctx.fillStyle=`rgba(190,200,255,${a})`;
+    const sx=((st.x*W-cam.x*st.z*.12)%W+W)%W;
+    const sy=((st.y*H-cam.y*st.z*.12)%H+H)%H;
+    ctx.fillRect(sx,sy,st.z>.8?1.6:1,st.z>.8?1.6:1);
+  }
+
+  const cx=w2sX(0), cy=w2sY(0);
+
+  // галактики: ореол, пунктирная граница, название
+  ctx.save();
+  ctx.textAlign="center";
+  for(const g of GALAXIES){
+    const gx=w2sX(g.x), gy=w2sY(g.y), R=g.R*cam.s;
+    if(gx+R<-140||gx-R>W+140||gy+R<-140||gy-R>H+140) continue;
+    const gr=ctx.createRadialGradient(gx,gy,R*.15,gx,gy,R);
+    gr.addColorStop(0,hexA(g.color,.05));
+    gr.addColorStop(.85,hexA(g.color,.015));
+    gr.addColorStop(1,hexA(g.color,0));
+    ctx.fillStyle=gr;
+    ctx.beginPath(); ctx.arc(gx,gy,R,0,TAU); ctx.fill();
+    ctx.strokeStyle=hexA(g.color,.22); ctx.lineWidth=1.1;
+    ctx.setLineDash([10,12]); ctx.lineDashOffset=RM?0:now/70;
+    ctx.beginPath(); ctx.arc(gx,gy,R,0,TAU); ctx.stroke();
+    ctx.setLineDash([]);
+    if(R>36){
+      const fs=Math.max(11,Math.min(42,R*.14));
+      ctx.font=fs+"px 'Russo One',sans-serif";
+      ctx.fillStyle=hexA(g.color,.55);
+      ctx.fillText(g.name.toUpperCase(),gx,gy-R-10);
+      ctx.font=Math.max(8,fs*.42)+"px 'JetBrains Mono',monospace";
+      ctx.fillStyle=hexA(g.color,.38);
+      ctx.fillText(g.count+" тайтлов",gx,gy-R-10+fs*.58);
+    }
+  }
+  // кольцо ядра
+  const coreR=820*cam.s;
+  ctx.strokeStyle="rgba(251,191,36,.25)"; ctx.lineWidth=1.2;
+  ctx.setLineDash([6,9]); ctx.lineDashOffset=RM?0:-now/80;
+  ctx.beginPath(); ctx.arc(cx,cy,coreR,0,TAU); ctx.stroke();
+  ctx.setLineDash([]);
+  if(coreR>50){
+    const cf=Math.max(10,Math.min(30,coreR*.06));
+    ctx.font=cf+"px 'Russo One',sans-serif";
+    ctx.fillStyle="rgba(251,191,36,.42)";
+    ctx.fillText("ЯДРО СЕТИ",cx,cy-coreR-10);
+  }
+  ctx.restore();
+
+  for(let i=ripples.length-1;i>=0;i--){
+    const rp=ripples[i], dt=(now-rp.t0)/1500;
+    if(dt<0) continue;
+    if(dt>1){ripples.splice(i,1);continue;}
+    ctx.beginPath(); ctx.arc(cx,cy,dt*2800*cam.s,0,TAU);
+    ctx.strokeStyle=`rgba(139,92,246,${.35*(1-dt)})`;
+    ctx.lineWidth=2*(1-dt)+.4; ctx.stroke();
+  }
+
+  const focus=hoverN||selectedN;
+  const fNbr=focus?nbr[focus.slug]:null;
+  const inFocus=s=>!focus||s===focus.slug||fNbr.has(s);
+
+  // связи: обычные — пакетно по цвету кластера, выделенные — поверх
+  if(!RM) dashOff-=.45;
+  const margin=80;
+  const onScr=n=>{
+    const x=w2sX(n.x), y=w2sY(n.y);
+    return x>-margin&&x<W+margin&&y>-margin&&y<H+margin;
+  };
+  const paths={};
+  const hiEdges=[], coreEdges=[];
+  for(const e of edges){
+    if(e.appear<=0) continue;
+    if(e.trunk||e.spoke){coreEdges.push(e);continue;}
+    if(!activeClusters.has(e.a.c)||!activeClusters.has(e.b.c)) continue;
+    if(!onScr(e.a)&&!onScr(e.b)) continue;
+    if(focus&&(e.a.slug===focus.slug||e.b.slug===focus.slug)){hiEdges.push(e);continue;}
+    const x1=w2sX(e.a.x),y1=w2sY(e.a.y);
+    const x2=x1+(w2sX(e.b.x)-x1)*e.appear, y2=y1+(w2sY(e.b.y)-y1)*e.appear;
+    let p=paths[e.ck];
+    if(!p){p=new Path2D();paths[e.ck]=p;}
+    p.moveTo(x1,y1); p.lineTo(x2,y2);
+  }
+  // линии ядра: Драгонболл → столпы (золото), столпы → хабы галактик
+  if(coreEdges.length){
+    ctx.setLineDash([4,10]);
+    if(!RM) ctx.lineDashOffset=dashOff;
+    for(const e of coreEdges){
+      const x1=w2sX(e.a.x),y1=w2sY(e.a.y);
+      const x2=x1+(w2sX(e.b.x)-x1)*e.appear, y2=y1+(w2sY(e.b.y)-y1)*e.appear;
+      ctx.lineWidth=e.trunk?1.8:1.1;
+      ctx.strokeStyle=e.trunk?"rgba(251,191,36,.45)":"rgba(167,139,250,.20)";
+      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+  }
+  ctx.lineWidth=.9;
+  const edgeA=focus?.05:.14;
+  for(const k in paths){
+    ctx.strokeStyle=hexA(CLUSTERS[k].color,edgeA);
+    ctx.stroke(paths[k]);
+  }
+  if(hiEdges.length){
+    ctx.lineWidth=1.6;
+    if(!RM){ctx.setLineDash([5,6]);ctx.lineDashOffset=dashOff;}
+    for(const e of hiEdges){
+      const x1=w2sX(e.a.x),y1=w2sY(e.a.y);
+      const x2=x1+(w2sX(e.b.x)-x1)*e.appear, y2=y1+(w2sY(e.b.y)-y1)*e.appear;
+      const g=ctx.createLinearGradient(x1,y1,x2,y2);
+      g.addColorStop(0,hexA(CLUSTERS[e.a.c].color,.9));
+      g.addColorStop(1,hexA(CLUSTERS[e.b.c].color,.9));
+      ctx.strokeStyle=g;
+      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+  }
+
+  // узлы: LOD — мелкие рисуем пакетно простыми кругами, крупные — спрайтами
+  const smallPaths={}, smallA={};
+  for(const n of nodes){
+    if(!n.visible||n.appear<=0) continue;
+    const x=w2sX(n.x), y=w2sY(n.y);
+    const rBase=n.r*cam.s;
+    if(x<-margin||x>W+margin||y<-margin||y>H+margin) continue;
+    const on=activeClusters.has(n.c);
+    const dimF=focus&&!inFocus(n.slug);
+    const a=(on?1:.08)*(dimF?.15:1);
+    if(a<=.01) continue;
+    const sc=RM?1:easeOutBack(Math.min(n.appear,1));
+    const wob=RM?0:Math.sin(now/1000*.9+n.ph)*1.1;
+    const yy=y+wob;
+    const r=Math.max(.4,rBase*sc);
+    const isSel=selectedN===n, isHov=hoverN===n;
+
+    // заявка на подгрузку обложки
+    if(n.imgState===0&&on&&r>=6&&imgWish.length<40) imgWish.push(n);
+
+    if(r<6&&!isSel&&!isHov&&!n.isCore){
+      // мелкий узел: круг в пакет своего кластера (два уровня прозрачности)
+      const bucket=a>.5?1:0;
+      const key=n.c+bucket;
+      let p=smallPaths[key];
+      if(!p){p=new Path2D();smallPaths[key]=p;smallA[key]=[n.c,bucket?1:.16];}
+      p.moveTo(x+r,yy); p.arc(x,yy,r,0,TAU);
+      continue;
+    }
+
+    ctx.globalAlpha=a;
+    if(n.spr){
+      const dw=r/SPR_R*SPR;
+      if(n.imgA<1){
+        n.imgA=Math.min(1,n.imgA+.06);
+        ctx.globalAlpha=a*(1-n.imgA);
+        const dd=r/DOT_R*DOT;
+        ctx.drawImage(dotSprites[n.c],x-dd/2,yy-dd/2,dd,dd);
+        ctx.globalAlpha=a*n.imgA;
+      }
+      ctx.drawImage(sprMip(n.spr,dw),x-dw/2,yy-dw/2,dw,dw);
+    } else {
+      const dd=r/DOT_R*DOT;
+      ctx.drawImage(dotSprites[n.c],x-dd/2,yy-dd/2,dd,dd);
+    }
+    ctx.globalAlpha=a;
+
+    const col=CLUSTERS[n.c].color;
+    if(n.isCore){
+      const p=RM?0:(Math.sin(now/600+n.ph)+1)/2;
+      ctx.strokeStyle=hexA("#fbbf24",.85); ctx.lineWidth=1.6;
+      ctx.beginPath(); ctx.arc(x,yy,r+4+p*2.5,0,TAU); ctx.stroke();
+      if(n===CENTER){
+        ctx.strokeStyle=hexA("#a78bfa",.5);
+        ctx.setLineDash([4,7]); ctx.lineDashOffset=RM?0:now/40;
+        ctx.beginPath(); ctx.arc(x,yy,r+10+p*3,0,TAU); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+    if(isSel||isHov){
+      ctx.strokeStyle=hexA(col,.9); ctx.lineWidth=1.4;
+      ctx.setLineDash([3,5]); ctx.lineDashOffset=RM?0:-now/30;
+      ctx.beginPath(); ctx.arc(x,yy,r+5,0,TAU); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    // подписи: ядро, крупные при зуме, фокус и его соседи
+    if(isSel||isHov||n.isCore||(n.isHub&&r>=7)||r>=15||(focus&&fNbr.has(n.slug))){
+      ctx.font=(n.isCore?"600 12px":n.isHub?"600 11px":"11px")+" 'JetBrains Mono',monospace";
+      ctx.textAlign="center";
+      const label=n.ru.length>28?n.ru.slice(0,27)+"…":n.ru;
+      ctx.fillStyle=`rgba(10,13,26,${a*.75})`;
+      ctx.fillText(label,x+1,yy+r+15);
+      ctx.fillStyle=n.isCore?hexA("#fbbf24",a):`rgba(213,221,255,${a*.92})`;
+      ctx.fillText(label,x,yy+r+14);
+    }
+  }
+  for(const key in smallPaths){
+    const [ck,aa]=smallA[key];
+    ctx.globalAlpha=aa;
+    ctx.fillStyle=CLUSTERS[ck].color;
+    ctx.fill(smallPaths[key]);
+  }
+  ctx.globalAlpha=1;
+  pumpImages();
+}
+
+/* ============================================================
+   ГЛАВНЫЙ ЦИКЛ
+   ============================================================ */
+function loop(now){
+  if(fly){
+    let t=Math.min(1,(now-fly.t0)/fly.ms);
+    t=1-Math.pow(1-t,3);
+    cam.x=fly.fx+(fly.tx-fly.fx)*t;
+    cam.y=fly.fy+(fly.ty-fly.fy)*t;
+    cam.s=fly.fs+(fly.ts-fly.fs)*t;
+    if(t>=1) fly=null;
+  }
+  updateReveal(now);
+  simTick();
+  draw(now);
+  requestAnimationFrame(loop);
+}
+fitView(0);
+cam.s=Math.max(cam.s,.07);
+scheduleBloom();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
