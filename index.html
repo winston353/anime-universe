@@ -1208,13 +1208,13 @@ function draw(now){
     ctx.beginPath(); ctx.arc(gx,gy,R,0,TAU); ctx.stroke();
     ctx.setLineDash([]);
     if(R>36){
-      const fs=Math.max(11,Math.min(42,R*.14));
+      const fs=13; // единый размер подписи для всех галактик
       ctx.font=fs+"px 'Russo One',sans-serif";
-      ctx.fillStyle=hexA(g.color,.55*ga);
+      ctx.fillStyle=hexA(g.color,.6*ga);
       ctx.fillText(g.name.toUpperCase(),gx,gy-R-10);
-      ctx.font=Math.max(8,fs*.42)+"px 'JetBrains Mono',monospace";
-      ctx.fillStyle=hexA(g.color,.38*ga);
-      ctx.fillText(g.count+" тайтлов",gx,gy-R-10+fs*.58);
+      ctx.font="9px 'JetBrains Mono',monospace";
+      ctx.fillStyle=hexA(g.color,.42*ga);
+      ctx.fillText(g.count+" тайтлов",gx,gy-R-10+fs*.85);
     }
   }
   // кольцо ядра — тоже после «врат»
