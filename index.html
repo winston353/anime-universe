@@ -367,6 +367,13 @@
   @media (max-width:720px){
     .toast.show{animation-name:gateM}
   }
+  /* в режиме установленного приложения прижимаем панели к низу:
+     системная безопасная зона и так почти пустая */
+  @media (max-width:720px) and (display-mode: standalone){
+    .legend{bottom:max(6px, calc(env(safe-area-inset-bottom) - 20px))}
+    .hud{bottom:max(6px, calc(env(safe-area-inset-bottom) - 20px))}
+    .panel-body{padding-bottom:calc(10px + env(safe-area-inset-bottom))}
+  }
   @media (prefers-reduced-motion: reduce){
     .panel{transition:none}
     .toast.show{animation:none;opacity:0}
