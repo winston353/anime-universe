@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>404 — Врата не найдены · Anime Universe</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Russo+One&family=Manrope:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#070a14;
+    --arcane:#8b5cf6;
+    --arcane-soft:#a78bfa;
+    --mana:#38bdf8;
+    --gold:#fbbf24;
+    --ink:#dbe4ff;
+    --muted:#7c89b0;
+    --mono:"JetBrains Mono",ui-monospace,monospace;
+    --body:"Manrope",system-ui,sans-serif;
+    --display:"Russo One",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:
+      radial-gradient(1100px 700px at 50% 38%, #131a3a 0%, transparent 62%),
+      var(--void);
+    color:var(--ink);font-family:var(--body);
+    -webkit-font-smoothing:antialiased;
+    overflow:hidden;
+    display:flex;align-items:center;justify-content:center;
+    padding:20px;
+  }
+  #stars{position:fixed;inset:0;pointer-events:none}
+  #stars i{position:absolute;background:#becaff;border-radius:50%;opacity:.5;animation:tw 3s ease-in-out infinite}
+  @keyframes tw{50%{opacity:.12}}
+
+  .wrap{position:relative;text-align:center;animation:in .9s ease both;max-width:100vw}
+  @keyframes in{from{opacity:0;transform:translateY(14px);filter:blur(6px)}to{opacity:1;transform:none;filter:none}}
+
+  .eyebrow{
+    font-family:var(--mono);font-size:10px;letter-spacing:.34em;
+    color:var(--arcane-soft);text-transform:uppercase;
+    display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:12px;
+  }
+  .eyebrow::before,.eyebrow::after{content:"";width:26px;height:1px;background:var(--arcane)}
+
+  .code{
+    display:flex;align-items:center;justify-content:center;
+    gap:clamp(8px,2.5vw,28px);
+    line-height:1;user-select:none;
+  }
+  .code .four{
+    font-family:var(--display);
+    font-size:clamp(70px,20vw,240px);
+    color:#eef1ff;
+    text-shadow:0 0 34px rgba(139,92,246,.65), 0 0 90px rgba(139,92,246,.3);
+  }
+  .zero{
+    height:min(clamp(200px,46vh,460px),70vw);
+    aspect-ratio:0.62;
+    border-radius:50%;
+    overflow:hidden;
+    border:3px solid var(--gold);
+    box-shadow:
+      0 0 0 3px rgba(251,191,36,.18),
+      0 0 44px rgba(251,191,36,.35),
+      0 0 110px rgba(139,92,246,.4);
+    position:relative;
+    flex:none;
+  }
+  .zero img{
+    width:100%;height:100%;object-fit:cover;object-position:center 18%;
+    display:block;
+  }
+  .zero::after{
+    content:"";position:absolute;inset:0;border-radius:50%;
+    box-shadow:inset 0 0 60px rgba(139,92,246,.22);
+    pointer-events:none;
+  }
+
+  h1{
+    font-family:var(--display);
+    font-size:clamp(17px,4.4vw,30px);
+    letter-spacing:.3em;margin-top:26px;color:#eef1ff;text-transform:uppercase;
+    text-shadow:0 0 24px rgba(139,92,246,.55);
+    padding-left:.3em; /* компенсация трекинга */
+  }
+  .sub{
+    margin-top:12px;font-size:clamp(12.5px,3.4vw,14.5px);color:var(--muted);line-height:1.65;
+    max-width:440px;margin-left:auto;margin-right:auto;
+  }
+  .sub b{color:var(--gold);font-weight:600}
+  .back{
+    display:inline-flex;align-items:center;gap:10px;
+    margin-top:26px;padding:13px 30px;text-decoration:none;
+    font-family:var(--mono);font-size:12px;letter-spacing:.22em;color:#0a0d1c;
+    background:linear-gradient(120deg,var(--arcane-soft),var(--mana));
+    clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);
+    transition:filter .2s, transform .15s;
+  }
+  .back:hover{filter:brightness(1.15);transform:translateY(-1px)}
+  .path{
+    margin-top:18px;font-family:var(--mono);font-size:10px;color:#4d5a80;letter-spacing:.08em;
+    max-width:90vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    margin-left:auto;margin-right:auto;
+  }
+
+  @media (max-width:480px){
+    h1{letter-spacing:.16em;font-size:clamp(15px,4.6vw,22px);padding-left:.16em}
+    .code{gap:clamp(6px,1.6vw,28px)}
+  }
+  @media (max-height:640px){
+    .zero{height:min(clamp(170px,40vh,300px),70vw)}
+    h1{margin-top:16px}
+    .back{margin-top:18px}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .wrap{animation:none}
+    #stars i{animation:none}
+  }
+</style>
+</head>
+<body>
+<div id="stars"></div>
+<div class="wrap">
+  <div class="eyebrow">Система // Ошибка 404</div>
+  <div class="code">
+    <span class="four">4</span>
+    <span class="zero"><img src="/404.jpg" alt="0"></span>
+    <span class="four">4</span>
+  </div>
+  <h1>Врата не найдены</h1>
+  <p class="sub">Такой страницы нет в этой вселенной — возможно, её поглотил разлом.<br>
+  Возвращайся на карту: там <b>1307</b> миров ещё на месте.</p>
+  <a class="back" href="/">◈ ВЕРНУТЬСЯ НА КАРТУ</a>
+  <div class="path" id="path"></div>
+</div>
+<script>
+"use strict";
+const box=document.getElementById("stars");
+for(let i=0;i<70;i++){
+  const s=document.createElement("i");
+  const z=Math.random();
+  s.style.left=(Math.random()*100)+"vw";
+  s.style.top=(Math.random()*100)+"vh";
+  s.style.width=s.style.height=(z>.85?2.2:1.3)+"px";
+  s.style.animationDelay=(Math.random()*3)+"s";
+  s.style.animationDuration=(2.2+Math.random()*2.6)+"s";
+  box.appendChild(s);
+}
+const p=document.getElementById("path");
+if(location.pathname&&location.pathname!=="/404.html")
+  p.textContent="запрошенный путь: "+location.pathname;
+</script>
+</body>
+</html>
