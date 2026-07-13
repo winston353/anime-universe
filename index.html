@@ -749,7 +749,7 @@ const ZMIN=.05, ZMAX=3.5;
 const cam={x:0,y:0,s:.5};
 let fly=null;
 function flyTo(x,y,s,ms=750){
-  if(RM){cam.x=x;cam.y=y;cam.s=s;fly=null;return;}
+  // плавный перелёт всегда: это навигация, а не декоративная анимация
   fly={fx:cam.x,fy:cam.y,fs:cam.s,tx:x,ty:y,ts:s,t0:performance.now(),ms};
 }
 const w2sX=x=>(x-cam.x)*cam.s+W/2;
@@ -1073,10 +1073,8 @@ cv.addEventListener("contextmenu",e=>e.preventDefault());
 cv.addEventListener("dblclick",e=>{
   e.preventDefault();
   const wx=s2wX(e.clientX), wy=s2wY(e.clientY);
-  cam.s=Math.min(ZMAX,cam.s*1.7);
-  cam.x=wx-(e.clientX-W/2)/cam.s;
-  cam.y=wy-(e.clientY-H/2)/cam.s;
-  fly=null;
+  const ns=Math.min(ZMAX,cam.s*1.7);
+  flyTo(wx-(e.clientX-W/2)/ns, wy-(e.clientY-H/2)/ns, ns, 380);
 });
 cv.addEventListener("wheel",e=>{
   e.preventDefault();
