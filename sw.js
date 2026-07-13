@@ -1,6 +1,6 @@
 /* Anime Universe — service worker: офлайн-кэш */
 "use strict";
-const V = "au-v1";
+const V = "au-v2";
 const CORE = ["/", "/data.js?v=4", "/favicon.svg", "/manifest.json", "/404.png?v=2"];
 
 self.addEventListener("install", e => {

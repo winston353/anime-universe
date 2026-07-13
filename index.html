@@ -370,8 +370,8 @@
   /* в режиме установленного приложения прижимаем панели к низу:
      системная безопасная зона и так почти пустая */
   @media (max-width:720px) and (display-mode: standalone){
-    .legend{bottom:max(4px, calc(env(safe-area-inset-bottom) - 26px))}
-    .hud{bottom:max(4px, calc(env(safe-area-inset-bottom) - 26px))}
+    .legend{bottom:2px}
+    .hud{bottom:2px}
     .panel-body{padding-bottom:calc(10px + env(safe-area-inset-bottom))}
   }
   @media (prefers-reduced-motion: reduce){
