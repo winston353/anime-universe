@@ -9,6 +9,17 @@
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="description" content="Интерактивная карта 1307 аниме: галактики жанров, ядро легенд, отметки просмотра, рейтинги MAL и переходы к просмотру.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://animap.world/">
+<meta property="og:title" content="Anime Universe — интерактивная карта аниме">
+<meta property="og:description" content="1307 аниме в тематических галактиках. Отмечай просмотренное, находи похожее, строй свой маршрут.">
+<meta property="og:image" content="https://animap.world/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0a0e1e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Russo+One&family=Manrope:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -133,6 +144,31 @@
   .cab-mail{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:3px;word-break:break-all}
   .cab-empty{font-size:12px;color:var(--muted);padding:2px 0 6px}
   .cab-note{font-size:12.5px;line-height:1.6;color:#b9c3e8;margin:10px 0 14px}
+
+  /* ---------- оценка, заметка, маршрут, фильтр ---------- */
+  .stars{display:flex;align-items:center;gap:2px;margin-top:8px}
+  .stars .st{background:none;border:0;color:#3d4870;font-size:17px;cursor:pointer;padding:1px;transition:color .15s,transform .1s;line-height:1}
+  .stars .st:hover{transform:scale(1.2)}
+  .stars .st.on{color:var(--gold);text-shadow:0 0 8px rgba(251,191,36,.6)}
+  .stars .sval{margin-left:8px;font-family:var(--mono);font-size:10px;color:var(--gold)}
+  .note{
+    width:100%;margin-top:10px;min-height:54px;resize:vertical;
+    background:rgba(10,14,30,.7);border:1px solid rgba(124,137,176,.25);
+    color:var(--ink);font-family:var(--body);font-size:12.5px;line-height:1.5;
+    padding:8px 10px;border-radius:2px;outline:none;
+  }
+  .note:focus{border-color:var(--arcane-soft)}
+  .watch2{
+    display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+    margin-top:8px;padding:9px 12px;cursor:pointer;
+    font-family:var(--mono);font-size:11px;letter-spacing:.18em;color:var(--arcane-soft);
+    background:rgba(139,92,246,.08);border:1px solid var(--line);border-radius:2px;
+    clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px);
+    transition:.2s;
+  }
+  .watch2:hover{color:#fff;background:rgba(139,92,246,.18)}
+  .watch2.on{color:var(--gold);border-color:rgba(251,191,36,.5)}
+  .chip.mode.act{color:var(--gold);border-color:rgba(251,191,36,.55)}
 
   /* ---------- легенда ---------- */
   .legend{
@@ -364,6 +400,7 @@
 </aside>
 
 <div class="hud">
+  <button id="rnd"  title="Случайное аниме">🎲</button>
   <button id="zin"  title="Приблизить">+</button>
   <button id="zout" title="Отдалить">−</button>
   <button id="fit"  title="Показать всю сеть">⤢</button>
@@ -943,6 +980,14 @@ function updateReveal(now){
    ============================================================ */
 const activeClusters=new Set(CKEYS);
 let hoverN=null, selectedN=null;
+let route=null, routeSet=null;
+let viewMode="all"; // all | fav | todo
+function passView(n){
+  if(viewMode==="all"||n.isCore) return true;
+  const mk=MARKS[n.slug];
+  if(viewMode==="fav") return !!(mk&&mk.f);
+  return !(mk&&mk.s==="d");
+}
 const drag={node:null,panning:false,moved:0,sx:0,sy:0,cx:0,cy:0};
 const pointers=new Map(); let pinch0=null;
 
@@ -951,7 +996,7 @@ function nodeAt(px,py,pad=8){
   let best=null,bd=1e9;
   const hitPad=pad/cam.s;
   for(const n of nodes){
-    if(!n.visible||!activeClusters.has(n.c)) continue;
+    if(!n.visible||!activeClusters.has(n.c)||!passView(n)) continue;
     const dx=n.x-wx; if(dx>60/cam.s+n.r||dx<-60/cam.s-n.r) continue;
     const dy=n.y-wy;
     const d=Math.hypot(dx,dy);
@@ -1097,6 +1142,9 @@ function select(n){
     ${n.desc?`<p class="p-desc">${n.desc}</p>`:""}
     <a class="watch" href="${n.am?`https://ru.yummyani.me${n.am}`:`https://ru.yummyani.me/catalog?q=${encodeURIComponent(n.ru)}`}" target="_blank" rel="noopener">▶ СМОТРЕТЬ НА YUMMY ANIME</a>
     <div id="mrowBox">${markRowHTML(n)}</div>
+    <textarea class="note" id="noteBox" maxlength="500" placeholder="Заметка для себя… (видна только тебе)">${esc((MARKS[n.slug]||{}).n||"")}</textarea>
+    <button class="watch2${route&&route[0]===n?" on":""}" id="routeBtn">${route&&route[0]===n?"✕ СБРОСИТЬ МАРШРУТ":"⟢ МАРШРУТ ПОХОЖИХ"}</button>
+    <div id="routeList">${routeListHTML(n)}</div>
     <div class="rel-cap">◈ Связи · ${rel.length}</div>
     ${rel.slice(0,REL_MAX).map(r=>`
       <button class="rel" data-id="${r.slug}">
@@ -1108,6 +1156,20 @@ function select(n){
   panel.classList.add("open");
   panel.querySelectorAll(".rel").forEach(b=>b.onclick=()=>select(bySlug[b.dataset.id]));
   bindMarkRow(n);
+  const noteBox=document.getElementById("noteBox");
+  let noteT=null;
+  noteBox.oninput=()=>{clearTimeout(noteT); noteT=setTimeout(()=>setMark(n.slug,"n",noteBox.value.trim()),600);};
+  const rb=document.getElementById("routeBtn");
+  rb.onclick=()=>{
+    if(route&&route[0]===n){route=null;routeSet=null;}
+    else buildRoute(n);
+    const on=!!(route&&route[0]===n);
+    rb.classList.toggle("on",on);
+    rb.textContent=on?"✕ СБРОСИТЬ МАРШРУТ":"⟢ МАРШРУТ ПОХОЖИХ";
+    document.getElementById("routeList").innerHTML=routeListHTML(n);
+    bindRouteList();
+  };
+  bindRouteList();
   const me=n;
   fetchScore(n).then(v=>{
     if(selectedN!==me) return;
@@ -1138,7 +1200,7 @@ function select(n){
 }
 function closePanel(){selectedN=null;panel.classList.remove("open");}
 document.getElementById("closePanel").onclick=closePanel;
-addEventListener("keydown",e=>{if(e.key==="Escape"){closePanel();document.getElementById("drop").classList.remove("open");}});
+addEventListener("keydown",e=>{if(e.key==="Escape"){closePanel();route=null;routeSet=null;document.getElementById("drop").classList.remove("open");}});
 
 /* ============================================================
    КАБИНЕТ: отметки, профиль, синхронизация через Firebase
@@ -1157,30 +1219,100 @@ function persistMarks(){
     saveTimer=setTimeout(()=>AU.save(USER.uid,MARKS).catch(e=>console.warn("сохранение:",e)),800);
   }
 }
-function setMark(slug,m){
+function setMark(slug,field,val){
   const cur=MARKS[slug]||{};
-  if(m==="f") cur.f=cur.f?0:1;
-  else cur.s=cur.s===m?"":m;
+  if(field==="f") cur.f=cur.f?0:1;
+  else if(field==="s") cur.s=cur.s===val?"":val;
+  else if(field==="r") cur.r=cur.r===val?0:val;
+  else if(field==="n"){ if(val) cur.n=val; else delete cur.n; }
   if(!cur.s) delete cur.s;
   if(!cur.f) delete cur.f;
+  if(!cur.r) delete cur.r;
   if(Object.keys(cur).length) MARKS[slug]=cur; else delete MARKS[slug];
   persistMarks();
+  recalcProgress();
 }
+/* прогресс: сколько просмотрено всего и по галактикам */
+let DONE_TOTAL=0;
+function recalcProgress(){
+  DONE_TOTAL=0;
+  const doneSet=new Set();
+  for(const k in MARKS) if(MARKS[k].s==="d"){doneSet.add(k);DONE_TOTAL++;}
+  for(const g of GALAXIES){
+    g.done=0;
+    for(const m of g.members) if(doneSet.has(m.slug)) g.done++;
+  }
+}
+recalcProgress();
+/* ранги охотника — по числу просмотренного */
+const HRANKS=[[500,"МОНАРХ","М"],[300,"Охотник ранга SS","SS"],[200,"Охотник ранга S","S"],
+  [100,"Охотник ранга A","A"],[50,"Охотник ранга B","B"],[25,"Охотник ранга C","C"],
+  [10,"Охотник ранга D","D"],[1,"Охотник ранга E","E"]];
+function hunterRank(d){
+  for(const [t,name,l] of HRANKS) if(d>=t) return {t,name,l};
+  return {t:0,name:"Пробуждающийся",l:"—"};
+}
+function nextRank(d){
+  let best=null;
+  for(const [t,name] of HRANKS) if(d<t&&(!best||t<best.t)) best={t,name};
+  return best;
+}
+const esc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+
 function markRowHTML(n){
   const mk=MARKS[n.slug]||{};
+  const r=mk.r||0;
   return `
     <div class="rel-cap">◈ Мои отметки</div>
     <div class="mrow">
       ${["w","p","d"].map(m=>`<button class="mbtn${mk.s===m?" on":""}" data-m="${m}" style="--mc:${MARK_COLORS[m]}">${MARK_NAMES[m]}</button>`).join("")}
       <button class="mbtn fav${mk.f?" on":""}" data-m="f" style="--mc:#f472b6" title="Избранное">${mk.f?"♥":"♡"}</button>
-    </div>`;
+    </div>
+    <div class="stars">${Array.from({length:10},(_,i)=>`<button class="st${i<r?" on":""}" data-v="${i+1}" title="${i+1} / 10">★</button>`).join("")}<span class="sval">${r?r+" / 10":""}</span></div>`;
+}
+function refreshMarkRow(n){
+  const h=document.getElementById("mrowBox");
+  if(h){h.innerHTML=markRowHTML(n); bindMarkRow(n);}
 }
 function bindMarkRow(n){
   panel.querySelectorAll(".mbtn").forEach(b=>b.onclick=()=>{
-    setMark(n.slug,b.dataset.m);
-    const holder=document.getElementById("mrowBox");
-    if(holder){holder.innerHTML=markRowHTML(n); bindMarkRow(n);}
+    setMark(n.slug, b.dataset.m==="f"?"f":"s", b.dataset.m);
+    refreshMarkRow(n);
   });
+  panel.querySelectorAll(".st").forEach(b=>b.onclick=()=>{
+    setMark(n.slug,"r",+b.dataset.v);
+    refreshMarkRow(n);
+  });
+}
+/* маршрут похожих: 5 самых близких непросмотренных */
+function buildRoute(n){
+  const pool=new Map();
+  if(n.galRef) for(const m of n.galRef.members) pool.set(m.slug,m);
+  for(const s of nbr[n.slug]) if(bySlug[s]) pool.set(s,bySlug[s]);
+  const cand=[];
+  for(const m of pool.values()){
+    if(m===n||m.isCore) continue;
+    const mk=MARKS[m.slug];
+    if(mk&&mk.s==="d") continue;
+    cand.push([pairSim(n,m),m]);
+  }
+  cand.sort((a,b)=>b[0]-a[0]);
+  const picked=cand.slice(0,5).map(x=>x[1]);
+  if(!picked.length){route=null;routeSet=null;return;}
+  route=[n,...picked];
+  routeSet=new Set(route.map(x=>x.slug));
+}
+function routeListHTML(n){
+  if(!route||route[0]!==n) return "";
+  return `<div class="rel-cap" style="color:#fbbf24">◈ Твой маршрут</div>`+
+    route.slice(1).map((m,i)=>`
+      <button class="rel" data-rt="${m.slug}">
+        <span class="thumb" style="--c:#fbbf24"><img loading="lazy" src="img/${m.slug}.jpg" alt="" onerror="this.remove()"></span>
+        <span class="rt">${i+1}. ${m.ru}</span>
+      </button>`).join("");
+}
+function bindRouteList(){
+  panel.querySelectorAll(".rel[data-rt]").forEach(b=>b.onclick=()=>select(bySlug[b.dataset.rt]));
 }
 function updateProfileChip(){
   const el=document.getElementById("profileBtn");
@@ -1194,7 +1326,7 @@ function openCabinet(){
   const item=n=>`
     <button class="rel" data-id="${n.slug}">
       <span class="thumb" style="--c:${CLUSTERS[n.c].color}"><img loading="lazy" src="img/${n.slug}.jpg" alt="" onerror="this.remove()"></span>
-      <span class="rt">${n.ru}</span>
+      <span class="rt">${n.ru}</span>${MARKS[n.slug]&&MARKS[n.slug].r?`<span class="sc">★ ${MARKS[n.slug].r}</span>`:""}
     </button>`;
   const section=(title,color,arr)=>`
     <div class="rel-cap" style="color:${color}">◈ ${title} · ${arr.length}</div>
@@ -1214,8 +1346,22 @@ function openCabinet(){
       <div class="cab-note">Войди через Google, чтобы отметки сохранялись в аккаунте и синхронизировались между устройствами. Пока без входа они хранятся только в этом браузере.</div>
       <a class="watch" id="cabLogin" href="javascript:void(0)">◈ ВОЙТИ ЧЕРЕЗ GOOGLE</a>`;
   }
+  const rk=hunterRank(DONE_TOTAL), nx=nextRank(DONE_TOTAL);
+  const rankBlock=`
+    <div class="rel-cap" style="color:var(--gold)">◈ Ранг охотника</div>
+    <div class="rank-row">
+      <div class="rank ${DONE_TOTAL>=200?"s":(DONE_TOTAL<1?"na":"")}">${rk.l}</div>
+      <div>
+        <div class="cab-name">${rk.name}</div>
+        <div class="cab-mail">просмотрено ${DONE_TOTAL} из ${nodes.length}</div>
+      </div>
+    </div>
+    ${nx?`<div class="bar" style="margin-top:8px"><i style="width:${Math.min(100,Math.round(DONE_TOTAL/nx.t*100))}%"></i></div>
+    <div class="cab-empty" style="margin-top:4px">до «${nx.name}» — ещё ${nx.t-DONE_TOTAL}</div>`:""}
+  `;
   document.getElementById("panelBody").innerHTML=`
     ${head}
+    ${rankBlock}
     ${section("Смотрю",MARK_COLORS.w,bySt("w"))}
     ${section("В планах",MARK_COLORS.p,bySt("p"))}
     ${section("Просмотрено",MARK_COLORS.d,bySt("d"))}
@@ -1248,8 +1394,9 @@ addEventListener("au-ready",()=>{
     } else {
       MARKS=loadLocalMarks("au:marks:guest");
     }
+    recalcProgress();
     updateProfileChip();
-    if(selectedN){const h=document.getElementById("mrowBox"); if(h){h.innerHTML=markRowHTML(selectedN); bindMarkRow(selectedN);}}
+    if(selectedN) refreshMarkRow(selectedN);
   });
 });
 
@@ -1293,6 +1440,23 @@ q.addEventListener("keydown",e=>{
 q.addEventListener("blur",()=>setTimeout(()=>dropEl.classList.remove("open"),150));
 
 const legend=document.getElementById("legend");
+/* фильтр «мой прогресс» */
+const MODES=[["all","фильтр: все"],["fav","фильтр: ♥ избранное"],["todo","фильтр: непросмотренные"]];
+const modeChip=document.createElement("div");
+modeChip.className="chip mode";
+function renderModeChip(){
+  const m=MODES.find(x=>x[0]===viewMode);
+  const c=viewMode==="all"?"#7c89b0":"#fbbf24";
+  modeChip.innerHTML=`<span class="dot" style="background:${c};color:${c}"></span>${m[1]}`;
+  modeChip.classList.toggle("act",viewMode!=="all");
+}
+modeChip.onclick=()=>{
+  const i=MODES.findIndex(x=>x[0]===viewMode);
+  viewMode=MODES[(i+1)%MODES.length][0];
+  renderModeChip();
+};
+renderModeChip();
+legend.appendChild(modeChip);
 CKEYS.forEach(k=>{
   const cnt=nodes.filter(n=>n.c===k).length;
   const el=document.createElement("div");
@@ -1313,7 +1477,16 @@ document.getElementById("zin").onclick=()=>zoomBy(1.3);
 document.getElementById("zout").onclick=()=>zoomBy(1/1.3);
 document.getElementById("fit").onclick=()=>fitView(750);
 document.getElementById("replay").onclick=()=>{
-  closePanel(); fitView(0); scheduleBloom();
+  closePanel(); route=null; routeSet=null; fitView(0); scheduleBloom();
+};
+document.getElementById("rnd").onclick=()=>{
+  const pool=nodes.filter(n=>!n.isCore&&n.visible&&activeClusters.has(n.c)&&passView(n));
+  if(!pool.length) return;
+  const t=pool[(Math.random()*pool.length)|0];
+  route=null; routeSet=null;
+  closePanel();
+  fitView(420);
+  setTimeout(()=>select(t),620);
 };
 
 /* ============================================================
@@ -1366,7 +1539,7 @@ function draw(now){
       ctx.fillText(g.name.toUpperCase(),gx,gy-R-8);
       ctx.font=(mobL?8:9)+"px 'JetBrains Mono',monospace";
       ctx.fillStyle=hexA(g.color,.42*ga);
-      ctx.fillText(g.count+" тайтлов",gx,gy-R-8+fs*.85);
+      ctx.fillText(g.done?`✓ ${g.done} / ${g.count}`:g.count+" тайтлов",gx,gy-R-8+fs*.85);
     }
   }
   // кольцо ядра — тоже после «врат»
@@ -1412,6 +1585,7 @@ function draw(now){
     if(e.appear<=0) continue;
     if(e.trunk||e.spoke){coreEdges.push(e);continue;}
     if(!activeClusters.has(e.a.c)||!activeClusters.has(e.b.c)) continue;
+    if(!passView(e.a)||!passView(e.b)) continue;
     if(!onScr(e.a)&&!onScr(e.b)) continue;
     if(focus&&(e.a.slug===focus.slug||e.b.slug===focus.slug)){hiEdges.push(e);continue;}
     const x1=w2sX(e.a.x),y1=w2sY(e.a.y);
@@ -1457,12 +1631,12 @@ function draw(now){
   // узлы: LOD — мелкие рисуем пакетно простыми кругами, крупные — спрайтами
   const smallPaths={}, smallA={};
   for(const n of nodes){
-    if(!n.visible||n.appear<=0) continue;
+    if(!n.visible||n.appear<=0||!passView(n)) continue;
     const x=w2sX(n.x), y=w2sY(n.y);
     const rBase=n.r*cam.s;
     if(x<-margin||x>W+margin||y<-margin||y>H+margin) continue;
     const on=activeClusters.has(n.c);
-    const dimF=focus&&!inFocus(n.slug);
+    const dimF=(focus&&!inFocus(n.slug))||(routeSet&&!routeSet.has(n.slug));
     const a=(on?1:.08)*(dimF?.15:1);
     if(a<=.01) continue;
     const sc=RM?1:easeOutBack(Math.min(n.appear,1));
@@ -1535,7 +1709,7 @@ function draw(now){
       ctx.setLineDash([]);
     }
     // подписи: ядро, крупные при зуме, фокус и его соседи
-    if(isSel||isHov||n.isCore||(n.isHub&&r>=7)||r>=15||(focus&&fNbr.has(n.slug))){
+    if(isSel||isHov||n.isCore||(n.isHub&&r>=7)||r>=15||(focus&&fNbr.has(n.slug))||(routeSet&&routeSet.has(n.slug))){
       ctx.font=(n.isCore?"600 12px":n.isHub?"600 11px":"11px")+" 'JetBrains Mono',monospace";
       ctx.textAlign="center";
       const label=n.ru.length>28?n.ru.slice(0,27)+"…":n.ru;
@@ -1552,6 +1726,30 @@ function draw(now){
     ctx.fill(smallPaths[key]);
   }
   ctx.globalAlpha=1;
+  // маршрут похожих: золотая нить с номерами
+  if(route){
+    ctx.save();
+    ctx.setLineDash([6,8]);
+    ctx.lineDashOffset=RM?0:dashOff*1.5;
+    ctx.strokeStyle="rgba(251,191,36,.75)";
+    ctx.lineWidth=2;
+    ctx.beginPath();
+    route.forEach((n,i)=>{const X=w2sX(n.x),Y=w2sY(n.y);i?ctx.lineTo(X,Y):ctx.moveTo(X,Y);});
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font="600 10px 'JetBrains Mono',monospace";
+    ctx.textAlign="center";
+    route.forEach((n,i)=>{
+      if(!i) return;
+      const off=Math.max(9,n.r*cam.s*.9);
+      const X=w2sX(n.x)+off, Y=w2sY(n.y)-off;
+      ctx.fillStyle="#fbbf24";
+      ctx.beginPath(); ctx.arc(X,Y,8,0,TAU); ctx.fill();
+      ctx.fillStyle="#0a0d1c";
+      ctx.fillText(String(i),X,Y+3.5);
+    });
+    ctx.restore();
+  }
   pumpImages();
 }
 
@@ -1577,6 +1775,10 @@ fitView(0);
 cam.s=Math.max(cam.s,.07);
 scheduleBloom();
 requestAnimationFrame(loop);
+
+/* PWA: офлайн-кэш и установка на телефон */
+if("serviceWorker" in navigator&&location.protocol==="https:")
+  navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 <script type="module">
 /* Firebase: вход через Google + синхронизация отметок */
