@@ -112,9 +112,23 @@
   }
   .thumb img{width:100%;height:100%;object-fit:cover;display:block}
 
+  /* ---------- топбар: язык + профиль ---------- */
+  .topbar{
+    position:fixed;top:18px;right:20px;z-index:12;
+    display:flex;align-items:stretch;gap:8px;
+  }
+  .langbtn{
+    display:flex;align-items:center;justify-content:center;
+    padding:0 12px;background:rgba(10,14,30,.82);border:1px solid var(--line);
+    color:var(--arcane-soft);font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.1em;
+    cursor:pointer;border-radius:2px;
+    clip-path:polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px);
+    transition:.2s;
+  }
+  .langbtn:hover{color:#fff;border-color:var(--arcane-soft);box-shadow:0 0 14px rgba(139,92,246,.35)}
   /* ---------- профиль ---------- */
   .pf{
-    position:fixed;top:18px;right:20px;z-index:12;
+    z-index:12;
     display:flex;align-items:center;gap:8px;
     padding:7px 13px;background:rgba(10,14,30,.82);border:1px solid var(--line);
     color:var(--ink);font-family:var(--mono);font-size:11px;letter-spacing:.08em;
@@ -348,7 +362,9 @@
     .chip:hover{transform:none}
     .chip .n{display:none}
     .hint{display:none}
-    .pf{top:calc(8px + env(safe-area-inset-top));right:8px;padding:6px 10px;max-width:150px}
+    .topbar{top:calc(8px + env(safe-area-inset-top));right:8px}
+    .pf{padding:6px 10px;max-width:130px}
+    .langbtn{padding:0 9px;font-size:10px}
     .hud{right:8px;bottom:calc(8px + env(safe-area-inset-bottom));gap:6px}
     .panel{width:100vw;top:auto;height:min(72vh,560px);border-left:0;border-top:1px solid var(--line);
       transform:translateY(105%)}
@@ -385,22 +401,25 @@
 <canvas id="cv"></canvas>
 
 <header>
-  <div class="eyebrow">Система // Карта связей</div>
+  <div class="eyebrow" id="eyebrow">Система // Карта связей</div>
   <h1>Anime Universe</h1>
   <div class="sub" id="sub"></div>
   <div class="search">
     <span class="icon">◈</span>
-    <input id="q" type="text" placeholder="Найти тайтл… (1307 шт.)" autocomplete="off" spellcheck="false">
+    <input id="q" type="text" placeholder="Найти тайтл…" autocomplete="off" spellcheck="false">
     <div class="drop" id="drop"></div>
   </div>
 </header>
 
-<button class="pf" id="profileBtn"><span class="nm">◈ Войти</span></button>
-<div class="legend" id="legend"><div class="cap">Кластеры</div></div>
+<div class="topbar">
+  <button class="langbtn" id="langBtn" title="Language">RU</button>
+  <button class="pf" id="profileBtn"><span class="nm">◈ Войти</span></button>
+</div>
+<div class="legend" id="legend"><div class="cap" id="legendCap">Кластеры</div></div>
 
 <aside class="panel" id="panel">
   <div class="panel-head">
-    <span class="tag">◈ Система // Инфо</span>
+    <span class="tag" id="panelTag">◈ Система // Инфо</span>
     <button class="x" id="closePanel" title="Закрыть">✕</button>
   </div>
   <div class="panel-body" id="panelBody"></div>
@@ -414,7 +433,7 @@
   <button id="replay" title="Открыть врата заново">⟳</button>
 </div>
 
-<div class="hint">колесо — масштаб · перетаскивание — навигация · клик по узлу — детали</div>
+<div class="hint" id="hint">колесо — масштаб · перетаскивание — навигация · клик по узлу — детали</div>
 <div class="tip" id="tip"></div>
 <div class="toast" id="toast">⟢ Врата открываются ⟣</div>
 
@@ -440,16 +459,64 @@ if(typeof JUTSU_RAW==="undefined"||!Array.isArray(JUTSU_RAW)||JUTSU_RAW.length<1
    прорастают ветвями от этих трёх.
    ============================================================ */
 const CLUSTERS = {
-  action:    {name:"Экшен · сёнэн",       color:"#a78bfa"},
-  sports:    {name:"Спорт",               color:"#fb923c"},
-  fantasy:   {name:"Фэнтези · магия",     color:"#60a5fa"},
-  adventure: {name:"Приключения",         color:"#4ade80"},
-  comedy:    {name:"Комедия · будни",     color:"#2dd4bf"},
-  romance:   {name:"Романтика · драма",   color:"#f9a8d4"},
-  scifi:     {name:"Сай-фай · меха",      color:"#22d3ee"},
-  dark:      {name:"Мрачное · мистика",   color:"#fb7185"},
+  action:    {name:"Экшен · сёнэн",       en:"Action · Shounen",   color:"#a78bfa"},
+  sports:    {name:"Спорт",               en:"Sports",             color:"#fb923c"},
+  fantasy:   {name:"Фэнтези · магия",     en:"Fantasy · Magic",    color:"#60a5fa"},
+  adventure: {name:"Приключения",         en:"Adventure",          color:"#4ade80"},
+  comedy:    {name:"Комедия · будни",     en:"Comedy · Daily",     color:"#2dd4bf"},
+  romance:   {name:"Романтика · драма",   en:"Romance · Drama",    color:"#f9a8d4"},
+  scifi:     {name:"Сай-фай · меха",      en:"Sci-Fi · Mecha",     color:"#22d3ee"},
+  dark:      {name:"Мрачное · мистика",   en:"Dark · Supernatural",color:"#fb7185"},
 };
 const CKEYS = Object.keys(CLUSTERS);
+
+/* ============================================================
+   ЯЗЫК: RU / EN
+   ============================================================ */
+let LANG = localStorage.getItem("au:lang");
+if(LANG!=="ru"&&LANG!=="en") LANG=(navigator.language||"").toLowerCase().startsWith("ru")?"ru":"en";
+const T = {
+  ru:{ eyebrow:"Система // Карта связей", search:"Найти тайтл… (1307 шт.)", clusters:"Кластеры",
+    signin:"◈ Войти", info:"◈ Система // Инфо", legend:"ЛЕГЕНДА", legends:"ЛЕГЕНДЫ", ratingMal:"Рейтинг MAL",
+    watch:"▶ СМОТРЕТЬ НА YUMMY ANIME", myMarks:"◈ Мои отметки", watching:"Смотрю", planned:"В планах",
+    watched:"Просмотрено", favorite:"Избранное", favorites:"Избранное", note:"Заметка для себя… (видна только тебе)",
+    routeBtn:"⟢ МАРШРУТ ПОХОЖИХ", routeClear:"✕ СБРОСИТЬ МАРШРУТ", yourRoute:"◈ Твой маршрут",
+    links:"◈ Связи", andMore:"…и ещё", hint:"колесо — масштаб · перетаскивание — навигация · клик по узлу — детали",
+    gate:"⟢ Врата открываются ⟣", titles:"тайтлов", hunterRank:"◈ Ранг охотника", watchedOf:(a,b)=>`просмотрено ${a} из ${b}`,
+    toRank:(n,k)=>`до «${n}» — ещё ${k}`, empty:"пока пусто", signout:"Выйти из аккаунта",
+    loginNote:"Войди через Google, чтобы отметки сохранялись в аккаунте и синхронизировались между устройствами. Пока без входа они хранятся только в этом браузере.",
+    loginBtn:"◈ ВОЙТИ ЧЕРЕЗ GOOGLE", galaxy:"галактика", hub:"хаб", ongoing:"онгоинг", core:" · ЛЕГЕНДА",
+    fAll:"фильтр: все", fFav:"фильтр: ♥ избранное", fTodo:"фильтр: непросмотренные",
+    ranks:{500:"МОНАРХ",300:"Охотник ранга SS",200:"Охотник ранга S",100:"Охотник ранга A",50:"Охотник ранга B",25:"Охотник ранга C",10:"Охотник ранга D",1:"Охотник ранга E",0:"Пробуждающийся"},
+    user:"Пользователь" },
+  en:{ eyebrow:"System // Relation Map", search:"Search title… (1307)", clusters:"Clusters",
+    signin:"◈ Sign in", info:"◈ System // Info", legend:"LEGEND", legends:"LEGENDS", ratingMal:"Rating MAL",
+    watch:"▶ WATCH ON YUMMY ANIME", myMarks:"◈ My marks", watching:"Watching", planned:"Planned",
+    watched:"Watched", favorite:"Favorite", favorites:"Favorites", note:"Personal note… (only you can see it)",
+    routeBtn:"⟢ SIMILAR ROUTE", routeClear:"✕ CLEAR ROUTE", yourRoute:"◈ Your route",
+    links:"◈ Links", andMore:"…and", hint:"wheel — zoom · drag — pan · click a node — details",
+    gate:"⟢ The Gate Opens ⟣", titles:"titles", hunterRank:"◈ Hunter Rank", watchedOf:(a,b)=>`watched ${a} of ${b}`,
+    toRank:(n,k)=>`to «${n}» — ${k} more`, empty:"empty yet", signout:"Sign out",
+    loginNote:"Sign in with Google so your marks are saved to your account and synced across devices. Without signing in they stay only in this browser.",
+    loginBtn:"◈ SIGN IN WITH GOOGLE", galaxy:"galaxy", hub:"hub", ongoing:"ongoing", core:" · LEGEND",
+    fAll:"filter: all", fFav:"filter: ♥ favorites", fTodo:"filter: unwatched",
+    ranks:{500:"MONARCH",300:"Hunter rank SS",200:"Hunter rank S",100:"Hunter rank A",50:"Hunter rank B",25:"Hunter rank C",10:"Hunter rank D",1:"Hunter rank E",0:"Awakening"},
+    user:"User" },
+};
+const tr = k => (T[LANG][k]!==undefined?T[LANG][k]:T.ru[k]);
+const nm = n => LANG==="ru" ? n.ru : (n.en||n.orig||n.ru);
+const dsc = n => LANG==="ru" ? (n.dr||n.de||n.desc||"") : (n.de||n.dr||n.desc||"");
+const clName = k => LANG==="ru" ? CLUSTERS[k].name : CLUSTERS[k].en;
+const galName = g => LANG==="ru" ? g.name : (g.nameEn||g.name);
+function fmtLines(s){
+  if(!s) return "";
+  if(LANG==="ru") return s;
+  return s
+    .replace(/(\d+)\s*сезон[а-я]*/gi,(_,n)=>n+(n==1?" season":" seasons"))
+    .replace(/(\d+)\s*сери[а-я]*/gi,(_,n)=>n+" ep.")
+    .replace(/(\d+)\s*фильм[а-я]*/gi,(_,n)=>n+(n==1?" movie":" movies"))
+    .replace(/онгоинг/gi,"ongoing");
+}
 const CENTER_SLUG = "dragonball";
 const PILLARS = ["oneepiece","naruuto","bleeach"];
 const BRANCH_OF = {
@@ -507,8 +574,8 @@ const nodes = JUTSU_RAW.map(a=>{
   let r = 3.2 + 1.35*Math.log2(imp+2);
   if(isCore) r += 5;
   return {
-    slug:a.slug, ru:a.ru, orig:a.orig, imgRemote:a.img, lines:a.lines,
-    desc:a.desc, ongoing:!!a.ongoing, am:a.am||null,
+    slug:a.slug, ru:a.ru, orig:a.orig, en:a.en||"", imgRemote:a.img, hd:a.hd||"", lines:a.lines,
+    desc:a.desc, dr:a.dr||"", de:a.de||"", scMal:a.sc||0, ongoing:!!a.ongoing, am:a.am||null,
     year:(a.years&&a.years.length)?Math.min(...a.years):0,
     c, gm, tm, tokens, imp, eps, films, isCore,
     x:0,y:0,vx:0,vy:0,r,
@@ -585,6 +652,15 @@ for(const name in galMap){
     (finalMap[t]=finalMap[t]||[]).push(n);
   }
 }
+const GAL_EN={
+  "Спорт":"Sports","Меха и космос":"Mecha & Space","Музыка":"Music","Хоррор и вампиры":"Horror & Vampires",
+  "Самураи и история":"Samurai & History","Война и служба":"War & Military","Игры и виртуальность":"Games & Virtual",
+  "Детектив":"Detective","Триллер и психология":"Thriller & Psychology","Демоны и духи":"Demons & Spirits",
+  "Мистика":"Supernatural","Сёдзё":"Shoujo","Школьная романтика":"School Romance","Романтика и драма":"Romance & Drama",
+  "Фантастика":"Sci-Fi","Магия":"Magic","Фэнтези-приключения":"Fantasy Adventure","Фэнтези":"Fantasy",
+  "Сёнэн-экшен":"Shounen Action","Экшен":"Action","Повседневность":"Slice of Life","Комедия":"Comedy",
+  "Приключения":"Adventure","Драма и прочее":"Drama & Other",
+};
 const GALAXIES=[];
 for(const name in finalMap){
   const members=finalMap[name];
@@ -592,7 +668,7 @@ for(const name in finalMap){
   for(const n of members) if(n.imp>hub.imp) hub=n;
   const cc={}; let color=CLUSTERS[hub.c].color, bc=0;
   for(const n of members){cc[n.c]=(cc[n.c]||0)+1; if(cc[n.c]>bc){bc=cc[n.c];color=CLUSTERS[n.c].color;}}
-  const g={name, members, hub, count:members.length,
+  const g={name, nameEn:GAL_EN[name]||name, members, hub, count:members.length,
     branch:GAL_BRANCH[name]||"oneepiece", color,
     R:Math.sqrt(members.length*5200/Math.PI)+100, x:0, y:0};
   members.forEach(n=>n.galRef=g);
@@ -1059,7 +1135,7 @@ cv.addEventListener("pointermove",e=>{
   if(hoverN){
     if(tipFor!==hoverN){
       tipFor=hoverN;
-      tip.innerHTML=`<img class="th" src="img/${hoverN.slug}.jpg" alt="" onerror="this.style.display='none'"><div><b>${hoverN.ru}</b><span>${hoverN.lines||""}</span></div>`;
+      tip.innerHTML=`<img class="th" src="img/${hoverN.slug}.jpg" alt="" onerror="this.style.display='none'"><div><b>${esc(nm(hoverN))}</b><span>${fmtLines(hoverN.lines)||""}</span></div>`;
     }
     tip.style.display="flex";
     tip.style.left=Math.min(mx+14,W-310)+"px";
@@ -1120,44 +1196,49 @@ async function fetchScore(n){
 function relListOf(n){
   return [...nbr[n.slug]].map(s=>bySlug[s]).sort((a,b)=>b.imp-a.imp);
 }
-function select(n){
-  selectedN=n;
+function select(n,skipFly){
+  selectedN=n; cabinetOpen=false;
   startLoad(n);
   // смещаем камеру так, чтобы панель не закрывала выбранный узел
-  const ts=Math.max(cam.s,1.0), mob=W<=720;
-  flyTo(n.x+(mob?0:178/ts), n.y+(mob?H*.3/ts:0), ts);
+  if(!skipFly){
+    const ts=Math.max(cam.s,1.0), mob=W<=720;
+    flyTo(n.x+(mob?0:178/ts), n.y+(mob?H*.3/ts:0), ts);
+  }
   const rel=relListOf(n);
   const REL_MAX=24;
-  const coreTag=n.isCore?" · ЛЕГЕНДА":"";
+  const coreTag=n.isCore?tr("core"):"";
+  const subtitle = LANG==="ru" ? (n.orig||"") : (n.ru!==nm(n)?n.ru:(n.orig||""));
+  const d=dsc(n);
+  const hdSrc=n.hd||("img/"+n.slug+".jpg");
   document.getElementById("panelBody").innerHTML=`
-    <div class="poster"><img src="img/${n.slug}.jpg" alt=""
+    <div class="poster"><img src="${hdSrc}" alt=""
       onload="this.classList.add('on')"
-      onerror="if(this.dataset.f){this.remove()}else{this.dataset.f=1;this.src='${(n.imgRemote||"").replace(/'/g,"")}'}"></div>
+      onerror="if(this.dataset.f=='2'){this.remove()}else if(this.dataset.f=='1'){this.dataset.f='2';this.src='${(n.imgRemote||"").replace(/'/g,"")}'}else{this.dataset.f='1';this.src='img/${n.slug}.jpg'}"></div>
     <div class="rank-row">
       <div class="rank na" id="rankBadge">…</div>
       <div>
-        <div class="p-title">${n.ru}</div>
-        <div class="p-meta"><span class="og">${n.orig||""}</span><br>
-          ${n.year?n.year+" · ":""}${CLUSTERS[n.c].name}${n.galRef?` · галактика «${n.galRef.name}»${n.isHub?" (хаб)":""}`:""}${coreTag}<br>
-          ${n.lines||""}${n.ongoing?' · <span class="ongoing">онгоинг</span>':""}
+        <div class="p-title">${esc(nm(n))}</div>
+        <div class="p-meta"><span class="og">${esc(subtitle)}</span><br>
+          ${n.year?n.year+" · ":""}${clName(n.c)}${n.galRef?` · ${tr("galaxy")} «${galName(n.galRef)}»${n.isHub?" ("+tr("hub")+")":""}`:""}${coreTag}<br>
+          ${fmtLines(n.lines)}${n.ongoing?' · <span class="ongoing">'+tr("ongoing")+'</span>':""}
         </div>
       </div>
     </div>
-    <div class="score-line"><span>Рейтинг MAL</span><b id="scoreVal">…</b></div>
+    <div class="score-line"><span>${tr("ratingMal")}</span><b id="scoreVal">…</b></div>
     <div class="bar"><i id="scoreBar" style="width:0"></i></div>
-    ${n.desc?`<p class="p-desc">${n.desc}</p>`:""}
-    <a class="watch" href="${n.am?`https://ru.yummyani.me${n.am}`:`https://ru.yummyani.me/catalog?q=${encodeURIComponent(n.ru)}`}" target="_blank" rel="noopener">▶ СМОТРЕТЬ НА YUMMY ANIME</a>
+    ${d?`<p class="p-desc">${esc(d)}</p>`:""}
+    <a class="watch" href="${n.am?`https://ru.yummyani.me${n.am}`:`https://ru.yummyani.me/catalog?q=${encodeURIComponent(n.ru)}`}" target="_blank" rel="noopener">${tr("watch")}</a>
     <div id="mrowBox">${markRowHTML(n)}</div>
-    <textarea class="note" id="noteBox" maxlength="500" placeholder="Заметка для себя… (видна только тебе)">${esc((MARKS[n.slug]||{}).n||"")}</textarea>
-    <button class="watch2${route&&route[0]===n?" on":""}" id="routeBtn">${route&&route[0]===n?"✕ СБРОСИТЬ МАРШРУТ":"⟢ МАРШРУТ ПОХОЖИХ"}</button>
+    <textarea class="note" id="noteBox" maxlength="500" placeholder="${tr("note")}">${esc((MARKS[n.slug]||{}).n||"")}</textarea>
+    <button class="watch2${route&&route[0]===n?" on":""}" id="routeBtn">${route&&route[0]===n?tr("routeClear"):tr("routeBtn")}</button>
     <div id="routeList">${routeListHTML(n)}</div>
-    <div class="rel-cap">◈ Связи · ${rel.length}</div>
+    <div class="rel-cap">${tr("links")} · ${rel.length}</div>
     ${rel.slice(0,REL_MAX).map(r=>`
       <button class="rel" data-id="${r.slug}">
         <span class="thumb" style="--c:${CLUSTERS[r.c].color}"><img loading="lazy" src="img/${r.slug}.jpg" alt="" onerror="this.remove()"></span>
-        <span class="rt">${r.ru}</span><span class="sc">${r.eps?r.eps+" сер.":(r.films?r.films+" ф.":"")}</span>
+        <span class="rt">${esc(nm(r))}</span><span class="sc">${r.eps?r.eps+(LANG==="ru"?" сер.":" ep"):(r.films?r.films+(LANG==="ru"?" ф.":" mv"):"")}</span>
       </button>`).join("")}
-    ${rel.length>REL_MAX?`<div class="rel-more">…и ещё ${rel.length-REL_MAX}</div>`:""}
+    ${rel.length>REL_MAX?`<div class="rel-more">${tr("andMore")} ${rel.length-REL_MAX}</div>`:""}
   `;
   panel.classList.add("open");
   panel.querySelectorAll(".rel").forEach(b=>b.onclick=()=>select(bySlug[b.dataset.id]));
@@ -1177,34 +1258,22 @@ function select(n){
   };
   bindRouteList();
   const me=n;
-  fetchScore(n).then(v=>{
+  const showScore=v=>{
     if(selectedN!==me) return;
     const badge=document.getElementById("rankBadge");
     const sv=document.getElementById("scoreVal"), sb=document.getElementById("scoreBar");
-    if(v.s>0){
-      const rk=rank(v.s);
-      badge.textContent=rk;
-      badge.className="rank"+(rk==="S"?" s":"");
-      sv.textContent="★ "+v.s.toFixed(1);
-      requestAnimationFrame(()=>{sb.style.width=Math.min(100,Math.max(4,(v.s-5)/4.5*100)).toFixed(0)+"%";});
+    if(!badge) return;
+    if(v>0){
+      const rk=rank(v);
+      badge.textContent=rk; badge.className="rank"+(rk==="S"?" s":"");
+      sv.textContent="★ "+v.toFixed(1);
+      requestAnimationFrame(()=>{sb.style.width=Math.min(100,Math.max(4,(v-5)/4.5*100)).toFixed(0)+"%";});
     } else {badge.textContent="—"; sv.textContent="—";}
-    // подменяем постер 186px на HD-версию с MAL, когда она догрузится
-    if(v.i){
-      const im=document.querySelector("#panelBody .poster img");
-      if(im){
-        const hi=new Image();
-        hi.onload=()=>{ if(selectedN===me&&im.isConnected) im.src=v.i; };
-        hi.src=v.i;
-      }
-    }
-  }).catch(()=>{
-    if(selectedN!==me) return;
-    const badge=document.getElementById("rankBadge"), sv=document.getElementById("scoreVal");
-    if(badge) badge.textContent="—";
-    if(sv) sv.textContent="—";
-  });
+  };
+  if(n.scMal>0) showScore(n.scMal);                 // готовый рейтинг (AniList) — мгновенно
+  else fetchScore(n).then(v=>showScore(v.s)).catch(()=>showScore(0));
 }
-function closePanel(){selectedN=null;panel.classList.remove("open");}
+function closePanel(){selectedN=null;cabinetOpen=false;panel.classList.remove("open");}
 document.getElementById("closePanel").onclick=closePanel;
 addEventListener("keydown",e=>{if(e.key==="Escape"){closePanel();route=null;routeSet=null;document.getElementById("drop").classList.remove("open");}});
 
@@ -1212,7 +1281,8 @@ addEventListener("keydown",e=>{if(e.key==="Escape"){closePanel();route=null;rout
    КАБИНЕТ: отметки, профиль, синхронизация через Firebase
    ============================================================ */
 const MARK_COLORS={w:"#38bdf8",p:"#fbbf24",d:"#4ade80"};
-const MARK_NAMES={w:"Смотрю",p:"В планах",d:"Просмотрено"};
+const MARK_KEY={w:"watching",p:"planned",d:"watched"};
+const markName=m=>tr(MARK_KEY[m]);
 let AU=null, USER=null, saveTimer=null;
 const marksKey=()=>USER?"au:marks:"+USER.uid:"au:marks:guest";
 function loadLocalMarks(k){try{return JSON.parse(lsGet(k||marksKey())||"{}")}catch(e){return{}}}
@@ -1251,16 +1321,14 @@ function recalcProgress(){
 }
 recalcProgress();
 /* ранги охотника — по числу просмотренного */
-const HRANKS=[[500,"МОНАРХ","М"],[300,"Охотник ранга SS","SS"],[200,"Охотник ранга S","S"],
-  [100,"Охотник ранга A","A"],[50,"Охотник ранга B","B"],[25,"Охотник ранга C","C"],
-  [10,"Охотник ранга D","D"],[1,"Охотник ранга E","E"]];
+const HRANKS=[[500,"М"],[300,"SS"],[200,"S"],[100,"A"],[50,"B"],[25,"C"],[10,"D"],[1,"E"]];
 function hunterRank(d){
-  for(const [t,name,l] of HRANKS) if(d>=t) return {t,name,l};
-  return {t:0,name:"Пробуждающийся",l:"—"};
+  for(const [t,l] of HRANKS) if(d>=t) return {t,name:tr("ranks")[t],l};
+  return {t:0,name:tr("ranks")[0],l:"—"};
 }
 function nextRank(d){
   let best=null;
-  for(const [t,name] of HRANKS) if(d<t&&(!best||t<best.t)) best={t,name};
+  for(const [t] of HRANKS) if(d<t&&(!best||t<best.t)) best={t,name:tr("ranks")[t]};
   return best;
 }
 const esc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
@@ -1269,10 +1337,10 @@ function markRowHTML(n){
   const mk=MARKS[n.slug]||{};
   const r=mk.r||0;
   return `
-    <div class="rel-cap">◈ Мои отметки</div>
+    <div class="rel-cap">${tr("myMarks")}</div>
     <div class="mrow">
-      ${["w","p","d"].map(m=>`<button class="mbtn${mk.s===m?" on":""}" data-m="${m}" style="--mc:${MARK_COLORS[m]}">${MARK_NAMES[m]}</button>`).join("")}
-      <button class="mbtn fav${mk.f?" on":""}" data-m="f" style="--mc:#f472b6" title="Избранное">${mk.f?"♥":"♡"}</button>
+      ${["w","p","d"].map(m=>`<button class="mbtn${mk.s===m?" on":""}" data-m="${m}" style="--mc:${MARK_COLORS[m]}">${markName(m)}</button>`).join("")}
+      <button class="mbtn fav${mk.f?" on":""}" data-m="f" style="--mc:#f472b6" title="${tr("favorite")}">${mk.f?"♥":"♡"}</button>
     </div>
     <div class="stars">${Array.from({length:10},(_,i)=>`<button class="st${i<r?" on":""}" data-v="${i+1}" title="${i+1} / 10">★</button>`).join("")}<span class="sval">${r?r+" / 10":""}</span></div>`;
 }
@@ -1310,11 +1378,11 @@ function buildRoute(n){
 }
 function routeListHTML(n){
   if(!route||route[0]!==n) return "";
-  return `<div class="rel-cap" style="color:#fbbf24">◈ Твой маршрут</div>`+
+  return `<div class="rel-cap" style="color:#fbbf24">${tr("yourRoute")}</div>`+
     route.slice(1).map((m,i)=>`
       <button class="rel" data-rt="${m.slug}">
         <span class="thumb" style="--c:#fbbf24"><img loading="lazy" src="img/${m.slug}.jpg" alt="" onerror="this.remove()"></span>
-        <span class="rt">${i+1}. ${m.ru}</span>
+        <span class="rt">${i+1}. ${esc(nm(m))}</span>
       </button>`).join("");
 }
 function bindRouteList(){
@@ -1325,18 +1393,19 @@ function updateProfileChip(){
   if(USER){
     const nm=(USER.displayName||"профиль").split(" ")[0];
     el.innerHTML=`${USER.photoURL?`<img src="${USER.photoURL}" alt="" referrerpolicy="no-referrer">`:""}<span class="nm">${nm}</span>`;
-  } else el.innerHTML=`<span class="nm">◈ Войти</span>`;
+  } else el.innerHTML=`<span class="nm">${tr("signin")}</span>`;
 }
+let cabinetOpen=false;
 function openCabinet(){
-  selectedN=null;
+  selectedN=null; cabinetOpen=true;
   const item=n=>`
     <button class="rel" data-id="${n.slug}">
       <span class="thumb" style="--c:${CLUSTERS[n.c].color}"><img loading="lazy" src="img/${n.slug}.jpg" alt="" onerror="this.remove()"></span>
-      <span class="rt">${n.ru}</span>${MARKS[n.slug]&&MARKS[n.slug].r?`<span class="sc">★ ${MARKS[n.slug].r}</span>`:""}
+      <span class="rt">${esc(nm(n))}</span>${MARKS[n.slug]&&MARKS[n.slug].r?`<span class="sc">★ ${MARKS[n.slug].r}</span>`:""}
     </button>`;
   const section=(title,color,arr)=>`
     <div class="rel-cap" style="color:${color}">◈ ${title} · ${arr.length}</div>
-    ${arr.length?arr.map(item).join(""):`<div class="cab-empty">пока пусто</div>`}`;
+    ${arr.length?arr.map(item).join(""):`<div class="cab-empty">${tr("empty")}</div>`}`;
   const bySt=st=>Object.keys(MARKS).filter(k=>MARKS[k].s===st&&bySlug[k]).map(k=>bySlug[k]);
   const favs=Object.keys(MARKS).filter(k=>MARKS[k].f&&bySlug[k]).map(k=>bySlug[k]);
   let head;
@@ -1349,30 +1418,30 @@ function openCabinet(){
       </div>`;
   } else {
     head=`
-      <div class="cab-note">Войди через Google, чтобы отметки сохранялись в аккаунте и синхронизировались между устройствами. Пока без входа они хранятся только в этом браузере.</div>
-      <a class="watch" id="cabLogin" href="javascript:void(0)">◈ ВОЙТИ ЧЕРЕЗ GOOGLE</a>`;
+      <div class="cab-note">${tr("loginNote")}</div>
+      <a class="watch" id="cabLogin" href="javascript:void(0)">${tr("loginBtn")}</a>`;
   }
   const rk=hunterRank(DONE_TOTAL), nx=nextRank(DONE_TOTAL);
   const rankBlock=`
-    <div class="rel-cap" style="color:var(--gold)">◈ Ранг охотника</div>
+    <div class="rel-cap" style="color:var(--gold)">${tr("hunterRank")}</div>
     <div class="rank-row">
       <div class="rank ${DONE_TOTAL>=200?"s":(DONE_TOTAL<1?"na":"")}">${rk.l}</div>
       <div>
         <div class="cab-name">${rk.name}</div>
-        <div class="cab-mail">просмотрено ${DONE_TOTAL} из ${nodes.length}</div>
+        <div class="cab-mail">${tr("watchedOf")(DONE_TOTAL,nodes.length)}</div>
       </div>
     </div>
     ${nx?`<div class="bar" style="margin-top:8px"><i style="width:${Math.min(100,Math.round(DONE_TOTAL/nx.t*100))}%"></i></div>
-    <div class="cab-empty" style="margin-top:4px">до «${nx.name}» — ещё ${nx.t-DONE_TOTAL}</div>`:""}
+    <div class="cab-empty" style="margin-top:4px">${tr("toRank")(nx.name,nx.t-DONE_TOTAL)}</div>`:""}
   `;
   document.getElementById("panelBody").innerHTML=`
     ${head}
     ${rankBlock}
-    ${section("Смотрю",MARK_COLORS.w,bySt("w"))}
-    ${section("В планах",MARK_COLORS.p,bySt("p"))}
-    ${section("Просмотрено",MARK_COLORS.d,bySt("d"))}
-    ${section("Избранное","#f472b6",favs)}
-    ${USER?`<button class="rel" id="cabLogout" style="margin-top:12px;justify-content:center">Выйти из аккаунта</button>`:""}
+    ${section(tr("watching"),MARK_COLORS.w,bySt("w"))}
+    ${section(tr("planned"),MARK_COLORS.p,bySt("p"))}
+    ${section(tr("watched"),MARK_COLORS.d,bySt("d"))}
+    ${section(tr("favorites"),"#f472b6",favs)}
+    ${USER?`<button class="rel" id="cabLogout" style="margin-top:12px;justify-content:center">${tr("signout")}</button>`:""}
   `;
   panel.classList.add("open");
   panel.querySelectorAll(".rel[data-id]").forEach(b=>b.onclick=()=>select(bySlug[b.dataset.id]));
@@ -1417,7 +1486,7 @@ function renderDrop(list){
   dropEl.innerHTML=list.slice(0,10).map(n=>`
     <button data-id="${n.slug}">
       <span class="thumb" style="--c:${CLUSTERS[n.c].color}"><img loading="lazy" src="img/${n.slug}.jpg" alt="" onerror="this.remove()"></span>
-      <span class="rt">${n.ru}</span><span class="sc">${n.orig||""}</span>
+      <span class="rt">${esc(nm(n))}</span><span class="sc">${esc(LANG==="ru"?(n.orig||""):(n.ru||""))}</span>
     </button>`).join("");
   dropEl.classList.add("open");
   dropEl.querySelectorAll("button").forEach(b=>b.onmousedown=e=>{
@@ -1428,7 +1497,7 @@ function renderDrop(list){
 q.addEventListener("input",()=>{
   const v=q.value.trim().toLowerCase();
   if(!v){dropEl.classList.remove("open");return;}
-  renderDrop(nodes.filter(n=>n.ru.toLowerCase().includes(v)||(n.orig||"").toLowerCase().includes(v)));
+  renderDrop(nodes.filter(n=>n.ru.toLowerCase().includes(v)||(n.orig||"").toLowerCase().includes(v)||(n.en||"").toLowerCase().includes(v)));
 });
 q.addEventListener("keydown",e=>{
   const btns=[...dropEl.querySelectorAll("button")];
@@ -1447,13 +1516,13 @@ q.addEventListener("blur",()=>setTimeout(()=>dropEl.classList.remove("open"),150
 
 const legend=document.getElementById("legend");
 /* фильтр «мой прогресс» */
-const MODES=[["all","фильтр: все"],["fav","фильтр: ♥ избранное"],["todo","фильтр: непросмотренные"]];
+const MODES=[["all","fAll"],["fav","fFav"],["todo","fTodo"]];
 const modeChip=document.createElement("div");
 modeChip.className="chip mode";
 function renderModeChip(){
   const m=MODES.find(x=>x[0]===viewMode);
   const c=viewMode==="all"?"#7c89b0":"#fbbf24";
-  modeChip.innerHTML=`<span class="dot" style="background:${c};color:${c}"></span>${m[1]}`;
+  modeChip.innerHTML=`<span class="dot" style="background:${c};color:${c}"></span>${tr(m[1])}`;
   modeChip.classList.toggle("act",viewMode!=="all");
 }
 modeChip.onclick=()=>{
@@ -1463,15 +1532,17 @@ modeChip.onclick=()=>{
 };
 renderModeChip();
 legend.appendChild(modeChip);
+const clusterChips={};
 CKEYS.forEach(k=>{
   const cnt=nodes.filter(n=>n.c===k).length;
   const el=document.createElement("div");
   el.className="chip";
-  el.innerHTML=`<span class="dot" style="background:${CLUSTERS[k].color};color:${CLUSTERS[k].color}"></span>${CLUSTERS[k].name}<span class="n">${cnt}</span>`;
+  el.innerHTML=`<span class="dot" style="background:${CLUSTERS[k].color};color:${CLUSTERS[k].color}"></span><span class="lbl">${clName(k)}</span><span class="n">${cnt}</span>`;
   el.onclick=()=>{
     el.classList.toggle("off");
     el.classList.contains("off")?activeClusters.delete(k):activeClusters.add(k);
   };
+  clusterChips[k]=el;
   legend.appendChild(el);
 });
 
@@ -1542,10 +1613,10 @@ function draw(now){
       const fs=mobL?10:13;
       ctx.font=fs+"px 'Russo One',sans-serif";
       ctx.fillStyle=hexA(g.color,.6*ga);
-      ctx.fillText(g.name.toUpperCase(),gx,gy-R-8);
+      ctx.fillText(galName(g).toUpperCase(),gx,gy-R-8);
       ctx.font=(mobL?8:9)+"px 'JetBrains Mono',monospace";
       ctx.fillStyle=hexA(g.color,.42*ga);
-      ctx.fillText(g.done?`✓ ${g.done} / ${g.count}`:g.count+" тайтлов",gx,gy-R-8+fs*.85);
+      ctx.fillText(g.done?`✓ ${g.done} / ${g.count}`:g.count+" "+tr("titles"),gx,gy-R-8+fs*.85);
     }
   }
   // кольцо ядра — тоже после «врат»
@@ -1560,7 +1631,7 @@ function draw(now){
       const cf=Math.max(10,Math.min(30,coreR*.06));
       ctx.font=cf+"px 'Russo One',sans-serif";
       ctx.fillStyle=`rgba(251,191,36,${.42*coreDecorA})`;
-      ctx.fillText("ЛЕГЕНДЫ",cx,cy-coreR-10);
+      ctx.fillText(tr("legends"),cx,cy-coreR-10);
     }
   }
   ctx.restore();
@@ -1777,6 +1848,31 @@ function loop(now){
   draw(now);
   requestAnimationFrame(loop);
 }
+/* ============================================================
+   ПРИМЕНЕНИЕ ЯЗЫКА
+   ============================================================ */
+function applyLang(){
+  document.documentElement.lang=LANG;
+  document.getElementById("eyebrow").textContent=tr("eyebrow");
+  document.getElementById("q").placeholder=tr("search");
+  document.getElementById("legendCap").textContent=tr("clusters");
+  document.getElementById("panelTag").textContent=tr("info");
+  document.getElementById("hint").textContent=tr("hint");
+  document.getElementById("toast").textContent=tr("gate");
+  document.getElementById("langBtn").textContent=LANG.toUpperCase();
+  renderModeChip();
+  for(const k of CKEYS) clusterChips[k].querySelector(".lbl").textContent=clName(k);
+  updateProfileChip();
+  if(cabinetOpen) openCabinet();
+  else if(selectedN) select(selectedN,true);
+}
+document.getElementById("langBtn").onclick=()=>{
+  LANG = LANG==="ru" ? "en" : "ru";
+  try{localStorage.setItem("au:lang",LANG);}catch(e){}
+  applyLang();
+};
+applyLang();
+
 fitView(0);
 cam.s=Math.max(cam.s,.07);
 scheduleBloom();
@@ -1793,7 +1889,7 @@ import {getAuth,GoogleAuthProvider,signInWithPopup,signInWithRedirect,onAuthStat
 import {getFirestore,doc,getDoc,setDoc} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 const app=initializeApp({
   apiKey:"AIzaSyASi1ogXkgPNyovSxXB_0ZBVnTvIy6Rw0o",
-  authDomain:"anime-universe-6c0a3.firebaseapp.com",
+  authDomain:"auth.animap.world",
   projectId:"anime-universe-6c0a3",
   storageBucket:"anime-universe-6c0a3.firebasestorage.app",
   messagingSenderId:"841003738694",
