@@ -1789,7 +1789,7 @@ function draw(now){
     if(isSel||isHov||n.isCore||(n.isHub&&r>=7)||r>=15||(focus&&fNbr.has(n.slug))||(routeSet&&routeSet.has(n.slug))){
       ctx.font=(n.isCore?"600 12px":n.isHub?"600 11px":"11px")+" 'JetBrains Mono',monospace";
       ctx.textAlign="center";
-      const label=n.ru.length>28?n.ru.slice(0,27)+"…":n.ru;
+      const lbl0=nm(n); const label=lbl0.length>28?lbl0.slice(0,27)+"…":lbl0;
       ctx.fillStyle=`rgba(10,13,26,${a*.75})`;
       ctx.fillText(label,x+1,yy+r+15);
       ctx.fillStyle=n.isCore?hexA("#fbbf24",a):`rgba(213,221,255,${a*.92})`;
